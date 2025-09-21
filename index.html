@@ -132,8 +132,8 @@
                  </div>
             </div>
             <div class="agentic-pane flex-1 overflow-hidden">
-                <h2 class="text-lg font-bold p-4 border-b text-slate-700 flex-shrink-0">History</h2>
-                <div id="conversation-history-list" class="p-2 space-y-1 overflow-y-auto"></div>
+                <h2 class="text-lg font-bold p-4 border-b text-slate-700 flex-shrink-0">Quick Actions</h2>
+                <div id="quick-actions-list" class="p-4 space-y-2 overflow-y-auto"></div>
             </div>
         </div>
     </main>
@@ -179,7 +179,7 @@
             const closeModalBtn = document.getElementById('close-modal-btn');
             const saveSettingsBtn = document.getElementById('save-settings-btn');
             const languageSelect = document.getElementById('language-select');
-            const conversationHistoryList = document.getElementById('conversation-history-list');
+            const quickActionsList = document.getElementById('quick-actions-list');
             
             let tools = [];
             let voiceEnabled = false;
@@ -190,12 +190,17 @@
                 "book_appointment": { title: "Book Appointment", icon: "fa-calendar-plus", category: "Scheduling" },
                 "create_invoice": { title: "Create Invoice", icon: "fa-file-invoice-dollar", category: "Billing" },
                 "send_sms": { title: "Send SMS/WhatsApp", icon: "fa-comment-sms", category: "Communication" },
-                "schedule_task": { title: "Schedule Task", icon: "fa-clock", category: "Automation" }
+                "schedule_task": { title: "Schedule Task", icon: "fa-clock", category: "Automation" },
+                "lead_create": { title: "Create Lead", icon: "fa-user-plus", category: "Sales" }
             };
 
-            const mockHistory = [
-                { id: 1, title: "Invoice for Jane Doe", time: "Today" },
-                { id: 2, title: "Appointment Follow-up", time: "Yesterday" }
+            const quickActions = [
+                { label: "List appointments for a date", prompt: "List appointments for 22 September 2025" },
+                { label: "View invoices by date", prompt: "Show invoices created on 15 September 2025" },
+                { label: "Lead created count by date", prompt: "How many leads were created on 20 September 2025?" },
+                { label: "Business trends", prompt: "Give me the latest business trends" },
+                { label: "Business report", prompt: "Generate a business performance report" },
+                { label: "Review count", prompt: "What is the current review count?" }
             ];
             
             // --- API LOGIC ---
@@ -253,19 +258,13 @@
                         }
                     };
 
+                    let fallbackKey = null;
                     if (lowerCasePrompt.includes("list appointment")) {
-                        await new Promise(r => setTimeout(r, 1000));
-                        return mockResponses.appointmentList;
-                    }
-
-                    if (lowerCasePrompt.includes("available appointment")) {
-                        await new Promise(r => setTimeout(r, 1000));
-                        return mockResponses.appointmentSlots;
-                    }
-
-                    if (lowerCasePrompt.includes("invoice")) {
-                        await new Promise(r => setTimeout(r, 1000));
-                        return mockResponses.invoice;
+                        fallbackKey = "appointmentList";
+                    } else if (lowerCasePrompt.includes("available appointment")) {
+                        fallbackKey = "appointmentSlots";
+                    } else if (lowerCasePrompt.includes("invoice")) {
+                        fallbackKey = "invoice";
                     }
 
                     // FALLBACK TO LIVE API with TIMEOUT
@@ -299,6 +298,10 @@
                         if (error.name === 'AbortError') {
                             throw new Error("Request timed out. The server might be starting up, please try again in a moment.");
                         }
+                        if (fallbackKey && mockResponses[fallbackKey]) {
+                            showToast("Live data unavailable, showing sample data instead.", true);
+                            return mockResponses[fallbackKey];
+                        }
                         throw error;
                     }
                 }
@@ -307,6 +310,7 @@
             // --- SPEECH RECOGNITION & SYNTHESIS ---
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             let recognition;
+            let speechSubmitting = false;
 
             function setupRecognition(lang) {
                 if (!SpeechRecognition) {
@@ -322,7 +326,10 @@
                 recognition.onstart = () => { micBtn.classList.add('listening', 'bg-red-500'); micBtn.classList.remove('bg-orange-500'); };
                 recognition.onend = () => { micBtn.classList.remove('listening', 'bg-red-500'); micBtn.classList.add('bg-orange-500'); };
                 recognition.onresult = (event) => {
-                    chatInput.value = event.results[0][0].transcript;
+                    const transcript = event.results[0][0].transcript.trim();
+                    if (!transcript) return;
+                    speechSubmitting = true;
+                    chatInput.value = transcript;
                     chatForm.dispatchEvent(new Event('submit', { bubbles: true }));
                 };
                 recognition.onerror = (event) => showToast(`Speech recognition error: ${event.error}`, true);
@@ -420,7 +427,27 @@
                     toolCatalog.innerHTML = Object.entries(groupedTools).map(([category, toolList]) => `<div><h3 class="font-bold text-slate-500 text-sm mb-2">${category}</h3><div class="space-y-2">${toolList.map(tool => { const schema = toolSchemas[tool.name]; return `<div data-example="${tool.name}" class="tool-item border p-3 rounded-md hover:bg-slate-50 cursor-pointer"><h4 class="font-bold text-slate-800"><i class="fa-solid ${schema.icon} mr-2 text-orange-500 w-5"></i>${schema.title}</h4></div>`; }).join('')}</div></div>`).join('');
                     toolCatalog.querySelectorAll('.tool-item').forEach(item => item.addEventListener('click', () => { chatInput.value = item.dataset.example; chatInput.focus(); }));
                 },
-                history: () => { conversationHistoryList.innerHTML = mockHistory.map((item, index) => `<div class="p-2 rounded-md ${index === 0 ? 'bg-orange-100 border-l-4 border-orange-500' : 'hover:bg-slate-100'} cursor-pointer"><p class="font-semibold text-sm truncate">${item.title}</p><p class="text-xs text-slate-500">${item.time}</p></div>`).join(''); }
+                quickActions: () => {
+                    if (!quickActionsList) return;
+                    quickActionsList.innerHTML = quickActions.map((action, index) => `
+                        <button
+                            type="button"
+                            data-prompt="${action.prompt.replace(/"/g, '&quot;')}"
+                            class="w-full text-left px-4 py-3 rounded-md border border-slate-200 hover:border-orange-400 hover:bg-orange-50 transition flex items-center justify-between"
+                        >
+                            <span class="font-medium text-slate-700">${action.label}</span>
+                            <span class="text-xs text-slate-400">QA-${index + 1}</span>
+                        </button>
+                    `).join('');
+                    quickActionsList.querySelectorAll('button[data-prompt]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const prompt = btn.dataset.prompt;
+                            chatInput.value = prompt;
+                            chatInput.focus();
+                            chatForm.dispatchEvent(new Event('submit', { bubbles: true }));
+                        });
+                    });
+                }
             };
             
             // --- MAIN CHAT LOGIC ---
@@ -459,7 +486,7 @@
                 if (!tool || !Array.isArray(dataPoints) || !dataPoints.length) return null;
 
                 const builders = {
-                    Invoice: (records) => {
+                    invoice: (records) => {
                         const invoice = records[0] || {};
                         const currency = invoice.currency;
                         const items = Array.isArray(invoice.items) ? invoice.items.map(item => {
@@ -518,14 +545,15 @@
                             </div>
                         `;
                     },
-                    Appointment: (records) => {
+                    appointment: (records) => {
                         if (records.length > 1) {
                             const rows = records.map(record => `
                                 <tr>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.appointmentId || record.queueNumber || '-'}</td>
-                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.customer || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.customer || record.name || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.serviceId ?? '-'}</td>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${formatDateTime(record.datetime)}</td>
-                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.status || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700 capitalize">${record.status || '-'}</td>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.queueNumber || '-'}</td>
                                 </tr>
                             `).join('');
@@ -539,6 +567,7 @@
                                                 <tr>
                                                     <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">ID</th>
                                                     <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Customer</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Service</th>
                                                     <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Date & Time</th>
                                                     <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Status</th>
                                                     <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Queue</th>
@@ -554,9 +583,9 @@
                         const appointment = records[0];
                         return `
                             <div class="chat-response-container space-y-4">
-                                <h4>Appointment ${appointment.appointmentId || ''}</h4>
+                                <h4>Appointment ${appointment.appointmentId || appointment.queueNumber || ''}</h4>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
-                                    <div><span class="block font-semibold text-slate-700">Customer</span>${appointment.customer || '-'}</div>
+                                    <div><span class="block font-semibold text-slate-700">Customer</span>${appointment.customer || appointment.name || '-'}</div>
                                     <div><span class="block font-semibold text-slate-700">Status</span>${appointment.status || '-'}</div>
                                     <div><span class="block font-semibold text-slate-700">Date & Time</span>${formatDateTime(appointment.datetime)}</div>
                                     <div><span class="block font-semibold text-slate-700">Queue Number</span>${appointment.queueNumber || '-'}</div>
@@ -565,11 +594,77 @@
                                 </div>
                             </div>
                         `;
+                    },
+                    lead: (records) => {
+                        if (!records.length) return null;
+
+                        if (records.length > 1) {
+                            const rows = records.map(record => `
+                                <tr>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.leadId || record.id || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.name || record.customerName || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.phone || record.phoneNumber || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.email || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.source || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.count ?? formatDateTime(record.createdAt)}</td>
+                                </tr>
+                            `).join('');
+
+                            return `
+                                <div class="chat-response-container">
+                                    <h4>Leads</h4>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full">
+                                            <thead>
+                                                <tr>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Lead</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Name</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Phone</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Email</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Source</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Count / Created</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-200">${rows}</tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        const lead = records[0];
+                        const detailRows = [
+                            { label: 'Lead ID', value: lead.leadId || lead.id || '-' },
+                            { label: 'Name', value: lead.name || lead.customerName || '-' },
+                            { label: 'Phone', value: lead.phone || lead.phoneNumber || '-' },
+                            { label: 'Email', value: lead.email || '-' },
+                            { label: 'Source', value: lead.source || '-' },
+                            { label: 'Notes', value: lead.notes || '-' },
+                            { label: 'Created At', value: formatDateTime(lead.createdAt) }
+                        ];
+                        const visibleDetails = detailRows.filter(item => item.value !== '-' && item.value !== undefined && item.value !== null && item.value !== '');
+                        const displayDetails = visibleDetails.length ? visibleDetails : detailRows;
+
+                        return `
+                            <div class="chat-response-container space-y-4">
+                                <h4>Lead ${lead.leadId || lead.name || ''}</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                                    ${displayDetails.map(item => `<div><span class="block font-semibold text-slate-700">${item.label}</span>${item.value || '-'}</div>`).join('')}
+                                </div>
+                            </div>
+                        `;
                     }
                 };
 
-                if (builders[tool]) {
-                    return builders[tool](dataPoints);
+                const normalizedTool = String(tool || '').toLowerCase();
+
+                if (builders[normalizedTool]) {
+                    return builders[normalizedTool](dataPoints);
+                }
+
+                const matchedKey = Object.keys(builders).find(key => normalizedTool.includes(key));
+                if (matchedKey) {
+                    return builders[matchedKey](dataPoints);
                 }
 
                 return `<div class="chat-response-container"><h4>${tool} Details</h4><pre class="text-sm text-slate-600 whitespace-pre-wrap">${JSON.stringify(dataPoints, null, 2)}</pre></div>`;
@@ -578,10 +673,18 @@
             async function handleChatSubmit(e) {
                 e.preventDefault();
                 const prompt = chatInput.value.trim();
-                if (!prompt) return;
+                if (!prompt) {
+                    speechSubmitting = false;
+                    return;
+                }
 
-                render.addMessageToChat(`<p>${prompt}</p>`, true);
-                chatInput.value = '';
+                render.addMessageToChat(`<p>${formatTextContent(prompt)}</p>`, true);
+                if (speechSubmitting) {
+                    chatInput.value = prompt;
+                    speechSubmitting = false;
+                } else {
+                    chatInput.value = '';
+                }
 
                 const thinkingMessageId = render.addMessageToChat(`<div class="bg-slate-200 text-slate-800 p-3 rounded-lg"><p class="italic text-slate-500 thinking-bubble">Connecting to agent</p></div>`, false);
 
@@ -646,7 +749,7 @@
                 chatForm.addEventListener('submit', handleChatSubmit);
                 tools = await api.getTools();
                 render.tools();
-                render.history();
+                render.quickActions();
                 setupRecognition(currentLang);
             }
 
