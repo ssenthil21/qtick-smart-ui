@@ -339,7 +339,32 @@
                     icon: "fa-chart-pie",
                     accent: "bg-slate-100 text-slate-600",
                     roles: ["manager"],
-                    description: "High-level performance snapshot for your lounge."
+                    description: "High-level performance snapshot for your lounge.",
+                    renderDetails: ({ selectedLocation }) => {
+                        const metrics = selectedLocation?.summaryMetrics || [];
+                        if (!metrics.length) {
+                            return '<p class="mt-4 text-xs text-slate-400">No summary metrics available yet.</p>';
+                        }
+                        const metricCards = metrics.map(metric => {
+                            const changeNumber = Number(metric.change);
+                            const hasChange = Number.isFinite(changeNumber);
+                            const changeLabel = hasChange
+                                ? `<p class="text-[11px] font-medium ${changeNumber >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${escapeAttribute(`${changeNumber >= 0 ? '▲' : '▼'} ${Math.abs(changeNumber).toFixed(Math.abs(changeNumber) < 1 ? 1 : 0)}%`)}</p>`
+                                : '';
+                            return `
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeAttribute(metric.label || '')}</p>
+                                    <p class="text-lg font-semibold text-slate-800">${escapeAttribute(metric.value || '-')}</p>
+                                    ${changeLabel}
+                                </div>
+                            `;
+                        }).join('');
+                        return `
+                            <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                ${metricCards}
+                            </div>
+                        `;
+                    }
                 },
                 {
                     id: "lead-summary",
@@ -348,7 +373,30 @@
                     icon: "fa-user-check",
                     accent: "bg-sky-100 text-sky-600",
                     roles: ["manager"],
-                    description: "Keep conversions on track with prioritized follow-ups."
+                    description: "Keep conversions on track with prioritized follow-ups.",
+                    renderDetails: ({ selectedLocation }) => {
+                        const events = Array.isArray(selectedLocation?.events) ? selectedLocation.events : [];
+                        const leadEvents = events.filter(event => String(event.tag).toLowerCase() === 'lead').slice(0, 3);
+                        if (!leadEvents.length) {
+                            return '<p class="mt-4 text-xs text-slate-400">No priority leads queued right now.</p>';
+                        }
+                        return `
+                            <ul class="mt-4 space-y-3">
+                                ${leadEvents.map(item => `
+                                    <li class="flex items-start gap-3">
+                                        <span class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                                            <i class="fa-solid ${escapeAttribute(item.icon || 'fa-user-plus')}"></i>
+                                        </span>
+                                        <div class="space-y-1">
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${escapeAttribute(item.time || '')}</p>
+                                            <p class="text-sm font-semibold text-slate-800">${escapeAttribute(item.title || '')}</p>
+                                            <p class="text-xs text-slate-500">${escapeAttribute(item.description || '')}</p>
+                                        </div>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        `;
+                    }
                 },
                 {
                     id: "business-events",
@@ -357,7 +405,30 @@
                     icon: "fa-calendar-star",
                     accent: "bg-purple-100 text-purple-600",
                     roles: ["manager"],
-                    description: "Stay ahead of workshops, promos, and community moments."
+                    description: "Stay ahead of workshops, promos, and community moments.",
+                    renderDetails: ({ selectedLocation }) => {
+                        const events = Array.isArray(selectedLocation?.events) ? selectedLocation.events : [];
+                        const upcomingEvents = events.filter(event => String(event.tag).toLowerCase() === 'event').slice(0, 3);
+                        if (!upcomingEvents.length) {
+                            return '<p class="mt-4 text-xs text-slate-400">No upcoming events scheduled.</p>';
+                        }
+                        return `
+                            <ul class="mt-4 space-y-3">
+                                ${upcomingEvents.map(item => `
+                                    <li class="flex items-start gap-3">
+                                        <span class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+                                            <i class="fa-solid ${escapeAttribute(item.icon || 'fa-calendar-star')}"></i>
+                                        </span>
+                                        <div class="space-y-1">
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${escapeAttribute(item.time || '')}</p>
+                                            <p class="text-sm font-semibold text-slate-800">${escapeAttribute(item.title || '')}</p>
+                                            <p class="text-xs text-slate-500">${escapeAttribute(item.description || '')}</p>
+                                        </div>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        `;
+                    }
                 },
                 {
                     id: "branch-consolidated-summary",
@@ -374,7 +445,37 @@
                         if (typeof branchSummary.lounges === 'number') parts.push(`${branchSummary.lounges} lounges`);
                         return parts.length ? parts.join(' • ') : "All Chillbreeze lounges";
                     },
-                    description: "Track network-wide outcomes in a single view."
+                    description: "Track network-wide outcomes in a single view.",
+                    renderDetails: ({ branchSummary }) => {
+                        if (!branchSummary) {
+                            return '<p class="mt-4 text-xs text-slate-400">Branch data is being prepared.</p>';
+                        }
+                        const metrics = Array.isArray(branchSummary.metrics) ? branchSummary.metrics : [];
+                        const highlights = Array.isArray(branchSummary.highlights) ? branchSummary.highlights : [];
+                        const metricCards = metrics.map(metric => {
+                            const changeNumber = Number(metric.change);
+                            const hasChange = Number.isFinite(changeNumber);
+                            const changeLabel = hasChange
+                                ? `<p class="text-[11px] font-medium ${changeNumber >= 0 ? 'text-emerald-600' : 'text-rose-600'}">${escapeAttribute(`${changeNumber >= 0 ? '▲' : '▼'} ${Math.abs(changeNumber).toFixed(Math.abs(changeNumber) < 1 ? 1 : 0)}%`)}</p>`
+                                : '';
+                            return `
+                                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-600">${escapeAttribute(metric.label || '')}</p>
+                                    <p class="text-lg font-semibold text-slate-800">${escapeAttribute(metric.value || '-')}</p>
+                                    ${changeLabel}
+                                </div>
+                            `;
+                        }).join('');
+                        const highlightList = highlights.length
+                            ? `<ul class="mt-4 space-y-2 text-xs text-slate-600">${highlights.map(item => `<li class="flex items-start gap-2"><span class="mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-400"></span><span>${escapeAttribute(item)}</span></li>`).join('')}</ul>`
+                            : '';
+                        return `
+                            <div class="mt-4 space-y-4">
+                                ${metricCards ? `<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">${metricCards}</div>` : ''}
+                                ${highlightList}
+                            </div>
+                        `;
+                    }
                 }
             ];
 
@@ -1090,6 +1191,9 @@
                         const description = descriptionText
                             ? `<p class="text-xs text-slate-400">${escapeAttribute(descriptionText)}</p>`
                             : '';
+                        const detailsMarkup = typeof action.renderDetails === 'function'
+                            ? action.renderDetails({ selectedLocation, branchSummary: branchConsolidatedSummary }) || ''
+                            : '';
                         const timeRangeControl = action.showTimeRange === false
                             ? ''
                             : `
@@ -1116,6 +1220,7 @@
                                         <p class="text-base font-semibold text-slate-800">${escapeAttribute(action.label)}</p>
                                         ${subtitle}
                                         ${description}
+                                        ${detailsMarkup}
                                     </div>
                                     <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 transition group-hover:text-orange-500"></i>
                                 </div>
@@ -1125,21 +1230,21 @@
                     }).join('');
 
                     const spotlightSection = `
-                        <section class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <section class="rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-sm backdrop-blur">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="space-y-1">
                                     <h3 class="text-sm font-semibold text-slate-700">Business spotlight</h3>
                                     <p class="text-xs text-slate-500">Switch lounges to tailor these ready-made prompts.</p>
                                 </div>
-                                <div class="sm:w-64">
+                                <div class="sm:w-60">
                                     <label for="business-select" class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Business</label>
                                     <select id="business-select" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-200/70">
                                         ${businessOptions}
                                     </select>
                                 </div>
                             </div>
-                            <p class="mt-3 text-xs text-slate-500">${escapeAttribute(selectedLocation.focus)}</p>
-                            <div class="mt-3 flex flex-col gap-3 rounded-xl bg-slate-50 px-3 py-3 text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="mt-2 text-xs text-slate-500">${escapeAttribute(selectedLocation.focus)}</p>
+                            <div class="mt-2 flex flex-col gap-2 rounded-xl bg-slate-50 px-3 py-2 text-slate-600 sm:flex-row sm:items-center sm:justify-between">
                                 <div class="flex items-center gap-3">
                                     <span class="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/10 text-orange-500">
                                         <i class="fa-solid fa-location-dot"></i>
