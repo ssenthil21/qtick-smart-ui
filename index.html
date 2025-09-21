@@ -850,9 +850,9 @@
                                             const safeDescription = escapeAttribute(tool.description || '');
                                             const safeTitle = escapeAttribute(schema.title || 'Tool');
                                             const safeTitleToken = escapeAttribute((schema.title || '').split(' ')[0] || 'Tool');
-                                            return `<button type="button" data-example="${tool.name}" class="tool-item group relative w-full overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-orange-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500/60">
+                                            return `<button type="button" data-example="${tool.name}" class="tool-item group relative w-full rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-orange-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500/60">
                                                 <div class="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-slate-100 opacity-0 transition duration-200 group-hover:opacity-100"></div>
-                                                <div class="relative flex h-full flex-col gap-6">
+                                                <div class="relative flex min-h-[220px] flex-col gap-6">
                                                     <div class="flex items-center justify-between gap-4">
                                                         <span class="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-medium text-orange-600">
                                                             <i class="fa-solid ${schema.icon}"></i>
@@ -866,13 +866,8 @@
                                                         <h4 class="text-lg font-semibold text-slate-800 transition group-hover:text-orange-600">${safeTitle}</h4>
                                                         <p class="text-sm leading-relaxed text-slate-500">${safeDescription}</p>
                                                     </div>
-                                                    <div class="mt-auto flex items-center justify-between text-xs font-medium text-slate-400 transition group-hover:text-orange-50">
-                                                        <span class="inline-flex items-center gap-2">
-                                                            <i class="fa-regular fa-circle-dot"></i>
-                                                            Built for ${category.toLowerCase()}
-                                                        </span>
+                                                    <div class="mt-auto flex items-center justify-end text-slate-400 transition group-hover:text-orange-50">
                                                         <span class="inline-flex items-center gap-2 text-sm font-semibold text-orange-500 transition group-hover:text-white">
-                                                            Launch
                                                             <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                                         </span>
                                                     </div>
@@ -903,7 +898,6 @@
                         return;
                     }
 
-                    const metrics = selectedLocation.metrics || {};
                     const businessOptions = chillbreezeLocations.map(location => `
                         <option value="${escapeAttribute(location.id)}">${escapeAttribute(location.name)}</option>
                     `).join('');
@@ -950,21 +944,18 @@
                                     </div>
                                 </div>
                                 <p class="mt-4 text-xs text-slate-500">${escapeAttribute(selectedLocation.focus)}</p>
-                                <dl class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                    <div class="rounded-xl bg-slate-50 px-4 py-3">
-                                        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Appointments</dt>
-                                        <dd class="mt-1 text-lg font-semibold text-slate-800">${escapeAttribute(metrics.appointments ?? '-')}</dd>
+                                <div class="mt-5 flex flex-col gap-4 rounded-xl bg-slate-50 px-4 py-4 text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 text-orange-500">
+                                            <i class="fa-solid fa-location-dot"></i>
+                                        </span>
+                                        <div>
+                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Located in</p>
+                                            <p class="text-sm font-semibold text-slate-800">${escapeAttribute(selectedLocation.area)}</p>
+                                        </div>
                                     </div>
-                                    <div class="rounded-xl bg-slate-50 px-4 py-3">
-                                        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Occupancy</dt>
-                                        <dd class="mt-1 text-lg font-semibold text-slate-800">${escapeAttribute(metrics.occupancy ?? '-')}</dd>
-                                    </div>
-                                    <div class="rounded-xl bg-slate-50 px-4 py-3">
-                                        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Satisfaction</dt>
-                                        <dd class="mt-1 text-lg font-semibold text-slate-800">${escapeAttribute(metrics.satisfaction ?? '-')}</dd>
-                                    </div>
-                                </dl>
-                                <p class="mt-4 text-[11px] uppercase tracking-wide text-slate-400">${escapeAttribute(selectedLocation.area)}</p>
+                                    <p class="text-xs text-slate-500 sm:text-right">Tailor these prompts for ${escapeAttribute(selectedLocation.name)}.</p>
+                                </div>
                             </section>
                             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 ${actionCards}
