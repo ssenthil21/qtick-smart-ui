@@ -106,6 +106,23 @@
                 <button id="tts-toggle-btn" class="text-slate-400 hover:text-orange-600" title="Toggle Voice Response">
                     <i class="fa-solid fa-volume-xmark"></i>
                 </button>
+                <div class="relative" id="role-switcher">
+                    <button id="role-switcher-btn" class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-orange-300 hover:text-orange-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
+                        <i class="fa-solid fa-user-tie text-orange-500"></i>
+                        <span id="role-switcher-label">Manager</span>
+                        <i class="fa-solid fa-angle-down text-xs"></i>
+                    </button>
+                    <div id="role-switcher-menu" class="absolute right-0 mt-2 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg hidden">
+                        <button type="button" class="flex w-full items-center gap-2 px-4 py-2 text-left text-slate-600 transition hover:bg-orange-50" data-role-option="manager">
+                            <i class="fa-solid fa-clipboard-user text-slate-400"></i>
+                            Manager
+                        </button>
+                        <button type="button" class="flex w-full items-center gap-2 px-4 py-2 text-left text-slate-600 transition hover:bg-orange-50" data-role-option="ceo">
+                            <i class="fa-solid fa-chess-king text-slate-400"></i>
+                            CEO
+                        </button>
+                    </div>
+                </div>
                 <button id="settings-btn" class="text-slate-500 hover:text-orange-600">
                     <i class="fa-solid fa-cog text-xl"></i>
                 </button>
@@ -216,16 +233,21 @@
             const quickActionsList = document.getElementById('quick-actions-list');
             const tabButtons = document.querySelectorAll('[data-tab-target]');
             const tabPanels = document.querySelectorAll('[data-tab-panel]');
+            const roleSwitcherBtn = document.getElementById('role-switcher-btn');
+            const roleSwitcherMenu = document.getElementById('role-switcher-menu');
+            const roleSwitcherLabel = document.getElementById('role-switcher-label');
 
             let tools = [];
             let voiceEnabled = false;
             let currentLang = 'en-US';
             let recognition;
             let speechSubmitting = false;
+            let currentRole = 'manager';
 
             const STORAGE_KEYS = {
                 chat: 'qtick-chat-html',
-                context: 'qtick-chat-context'
+                context: 'qtick-chat-context',
+                role: 'qtick-role-preference'
             };
 
             const conversationMemory = {
@@ -242,6 +264,15 @@
                 lastAnalytics: null,
                 lastAction: null
             };
+
+            try {
+                const storedRole = localStorage.getItem(STORAGE_KEYS.role);
+                if (storedRole === 'ceo' || storedRole === 'manager') {
+                    currentRole = storedRole;
+                }
+            } catch (error) {
+                console.warn('Unable to restore stored role preference', error);
+            }
 
             const activeCharts = {};
             let contextCounter = 0;
@@ -274,28 +305,76 @@
 
             const quickActionTemplates = [
                 {
+                    id: "schedule-overview",
                     label: "Schedule overview",
                     promptTemplate: "List appointments scheduled at {location} for {timeRange}",
                     icon: "fa-calendar-days",
                     accent: "bg-orange-100 text-orange-600"
                 },
                 {
+                    id: "revenue-snapshot",
                     label: "Revenue snapshot",
                     promptTemplate: "Show a revenue summary for {location} for {timeRange}",
                     icon: "fa-file-invoice-dollar",
                     accent: "bg-emerald-100 text-emerald-600"
                 },
                 {
+                    id: "staff-utilisation",
                     label: "Staff utilisation",
                     promptTemplate: "Summarize staff utilisation at {location} for {timeRange}",
                     icon: "fa-user-group",
                     accent: "bg-violet-100 text-violet-600"
                 },
                 {
+                    id: "customer-feedback",
                     label: "Customer feedback",
                     promptTemplate: "Share the latest customer feedback for {location} for {timeRange}",
                     icon: "fa-star",
                     accent: "bg-amber-100 text-amber-600"
+                },
+                {
+                    id: "business-summary",
+                    label: "Business summary",
+                    promptTemplate: "Summarize performance for {location} over {timeRange}, highlighting revenue, utilisation, and satisfaction.",
+                    icon: "fa-chart-pie",
+                    accent: "bg-slate-100 text-slate-600",
+                    roles: ["manager"],
+                    description: "High-level performance snapshot for your lounge."
+                },
+                {
+                    id: "lead-summary",
+                    label: "Lead summary",
+                    promptTemplate: "List the most important leads for {location} for {timeRange} and outline the next best actions.",
+                    icon: "fa-user-check",
+                    accent: "bg-sky-100 text-sky-600",
+                    roles: ["manager"],
+                    description: "Keep conversions on track with prioritized follow-ups."
+                },
+                {
+                    id: "business-events",
+                    label: "Business events",
+                    promptTemplate: "Show the key business events scheduled at {location} for {timeRange} with owners and preparation notes.",
+                    icon: "fa-calendar-star",
+                    accent: "bg-purple-100 text-purple-600",
+                    roles: ["manager"],
+                    description: "Stay ahead of workshops, promos, and community moments."
+                },
+                {
+                    id: "branch-consolidated-summary",
+                    label: "Branch consolidate summary",
+                    promptTemplate: "Provide a consolidated summary for all Chillbreeze lounges for {timeRange}, covering revenue, appointments, and leads.",
+                    icon: "fa-diagram-project",
+                    accent: "bg-emerald-100 text-emerald-600",
+                    roles: ["ceo"],
+                    requiresLocation: false,
+                    getSubtitle: ({ branchSummary }) => {
+                        if (!branchSummary) return "All Chillbreeze lounges";
+                        const parts = [];
+                        if (branchSummary.period) parts.push(branchSummary.period);
+                        if (typeof branchSummary.lounges === 'number') parts.push(`${branchSummary.lounges} lounges`);
+                        return parts.length ? parts.join(' • ') : "All Chillbreeze lounges";
+                    },
+                    description: "Track network-wide outcomes in a single view."
                 }
             ];
 
@@ -316,7 +395,30 @@
                         appointments: 142,
                         occupancy: '89%',
                         satisfaction: '4.9 / 5'
-                    }
+                    },
+                    summaryMetrics: [
+                        { label: "Today's revenue", value: 'S$18,750', change: 6.2 },
+                        { label: 'Check-ins', value: '52', change: 3.1 },
+                        { label: 'Utilisation', value: '89%', change: 1.2 }
+                    ],
+                    events: [
+                        {
+                            time: '09:30',
+                            title: 'Follow up TechFin corporate lead',
+                            description: 'Priya to confirm wellness retreat package.',
+                            tag: 'Lead',
+                            icon: 'fa-user-plus',
+                            accent: 'bg-sky-100 text-sky-600'
+                        },
+                        {
+                            time: '13:00',
+                            title: 'Influencer wellness workshop',
+                            description: 'Setup aroma pods and welcome kits in studio two.',
+                            tag: 'Event',
+                            icon: 'fa-bullhorn',
+                            accent: 'bg-purple-100 text-purple-600'
+                        }
+                    ]
                 },
                 {
                     id: 'chillbreeze-anna-nagar',
@@ -327,7 +429,30 @@
                         appointments: 118,
                         occupancy: '82%',
                         satisfaction: '4.7 / 5'
-                    }
+                    },
+                    summaryMetrics: [
+                        { label: "Today's revenue", value: 'S$12,140', change: 4.5 },
+                        { label: 'Check-ins', value: '44', change: 2.4 },
+                        { label: 'Lead conversions', value: '7', change: 1.1 }
+                    ],
+                    events: [
+                        {
+                            time: '10:15',
+                            title: 'Call back bridal spa lead',
+                            description: 'Rakesh awaiting customised detox quote.',
+                            tag: 'Lead',
+                            icon: 'fa-phone-volume',
+                            accent: 'bg-amber-100 text-amber-600'
+                        },
+                        {
+                            time: '16:00',
+                            title: 'Neighbourhood wellness talk',
+                            description: 'Community event hosted with local yoga collective.',
+                            tag: 'Event',
+                            icon: 'fa-people-group',
+                            accent: 'bg-emerald-100 text-emerald-600'
+                        }
+                    ]
                 },
                 {
                     id: 'chillbreeze-adayar',
@@ -338,9 +463,46 @@
                         appointments: 126,
                         occupancy: '85%',
                         satisfaction: '4.8 / 5'
-                    }
+                    },
+                    summaryMetrics: [
+                        { label: "Today's revenue", value: 'S$14,680', change: 5.1 },
+                        { label: 'Check-ins', value: '47', change: 2.7 },
+                        { label: 'Spa packages upsold', value: '11', change: 3.4 }
+                    ],
+                    events: [
+                        {
+                            time: '11:00',
+                            title: 'Yacht club guest arrival',
+                            description: 'Coordinate premium detox ritual for visiting members.',
+                            tag: 'Event',
+                            icon: 'fa-sailboat',
+                            accent: 'bg-cyan-100 text-cyan-600'
+                        },
+                        {
+                            time: '18:30',
+                            title: 'Upsell follow-up for Ananya',
+                            description: 'Share membership benefits after evening therapy.',
+                            tag: 'Lead',
+                            icon: 'fa-comments',
+                            accent: 'bg-rose-100 text-rose-600'
+                        }
+                    ]
                 }
             ];
+
+            const branchConsolidatedSummary = {
+                lounges: chillbreezeLocations.length,
+                period: 'Week to date',
+                metrics: [
+                    { label: 'Total revenue', value: 'S$186,400', change: 8.4 },
+                    { label: 'Appointments completed', value: '386', change: 5.2 },
+                    { label: 'Active leads', value: '128', change: 6.1 }
+                ],
+                highlights: [
+                    'Orchard lounge delivered 40% of revenue via premium add-ons.',
+                    'Anna Nagar events pushed community conversions up 9% week-over-week.'
+                ]
+            };
 
             let selectedQuickActionsLocationId = chillbreezeLocations[0]?.id || '';
 
@@ -902,64 +1064,106 @@
                         <option value="${escapeAttribute(location.id)}">${escapeAttribute(location.name)}</option>
                     `).join('');
 
-                    const actionCards = quickActionTemplates.map(action => `
-                        <div class="quick-action-card group w-full rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-lg" role="button" tabindex="0" data-template="${escapeAttribute(action.promptTemplate)}">
-                            <div class="flex items-start gap-4">
-                                <div class="h-12 w-12 rounded-xl flex items-center justify-center ${action.accent}">
-                                    <i class="fa-solid ${action.icon} text-lg"></i>
+                    const actionsForRole = quickActionTemplates.filter(action => {
+                        if (!Array.isArray(action.roles) || action.roles.length === 0) return true;
+                        return action.roles.includes(currentRole);
+                    });
+
+                    const actionCards = actionsForRole.map(action => {
+                        const accent = escapeAttribute(action.accent || 'bg-slate-100 text-slate-600');
+                        const icon = escapeAttribute(action.icon || 'fa-bolt');
+                        const subtitleText = (() => {
+                            if (typeof action.getSubtitle === 'function') {
+                                return action.getSubtitle({ selectedLocation, branchSummary: branchConsolidatedSummary });
+                            }
+                            if (action.requiresLocation === false) {
+                                return action.subtitle || 'All Chillbreeze lounges';
+                            }
+                            return action.subtitle || (selectedLocation ? selectedLocation.name : '');
+                        })();
+                        const descriptionText = typeof action.description === 'function'
+                            ? action.description({ selectedLocation, branchSummary: branchConsolidatedSummary })
+                            : action.description;
+                        const subtitle = subtitleText
+                            ? `<p class="text-xs text-slate-500">${escapeAttribute(subtitleText)}</p>`
+                            : '';
+                        const description = descriptionText
+                            ? `<p class="text-xs text-slate-400">${escapeAttribute(descriptionText)}</p>`
+                            : '';
+                        const timeRangeControl = action.showTimeRange === false
+                            ? ''
+                            : `
+                                <div class="mt-6 flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-2 text-[11px] font-medium text-slate-500">
+                                        <i class="fa-regular fa-calendar"></i>
+                                        <span>Time range</span>
+                                    </div>
+                                    <select class="time-range-select rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-200/70" data-range-select>
+                                        ${timeRangeOptions.map((option, index) => `
+                                            <option value="${escapeAttribute(option.value)}" ${index === 0 ? 'selected' : ''}>${escapeAttribute(option.label)}</option>
+                                        `).join('')}
+                                    </select>
                                 </div>
-                                <div class="flex-1 space-y-2">
-                                    <p class="text-base font-semibold text-slate-800">${escapeAttribute(action.label)}</p>
-                                    <p class="text-xs text-slate-500">${escapeAttribute(selectedLocation.name)}</p>
+                            `;
+
+                        return `
+                            <div class="quick-action-card group w-full rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-lg" role="button" tabindex="0" data-template="${escapeAttribute(action.promptTemplate)}">
+                                <div class="flex items-start gap-4">
+                                    <div class="h-12 w-12 rounded-xl flex items-center justify-center ${accent}">
+                                        <i class="fa-solid ${icon} text-lg"></i>
+                                    </div>
+                                    <div class="flex-1 space-y-2">
+                                        <p class="text-base font-semibold text-slate-800">${escapeAttribute(action.label)}</p>
+                                        ${subtitle}
+                                        ${description}
+                                    </div>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 transition group-hover:text-orange-500"></i>
                                 </div>
-                                <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 transition group-hover:text-orange-500"></i>
+                                ${timeRangeControl}
                             </div>
-                            <div class="mt-6 flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-2 text-[11px] font-medium text-slate-500">
-                                    <i class="fa-regular fa-calendar"></i>
-                                    <span>Time range</span>
+                        `;
+                    }).join('');
+
+                    const spotlightSection = `
+                        <section class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="space-y-1">
+                                    <h3 class="text-sm font-semibold text-slate-700">Business spotlight</h3>
+                                    <p class="text-xs text-slate-500">Switch lounges to tailor these ready-made prompts.</p>
                                 </div>
-                                <select class="time-range-select rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-200/70" data-range-select>
-                                    ${timeRangeOptions.map((option, index) => `
-                                        <option value="${escapeAttribute(option.value)}" ${index === 0 ? 'selected' : ''}>${escapeAttribute(option.label)}</option>
-                                    `).join('')}
-                                </select>
+                                <div class="sm:w-64">
+                                    <label for="business-select" class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Business</label>
+                                    <select id="business-select" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-200/70">
+                                        ${businessOptions}
+                                    </select>
+                                </div>
                             </div>
+                            <p class="mt-3 text-xs text-slate-500">${escapeAttribute(selectedLocation.focus)}</p>
+                            <div class="mt-3 flex flex-col gap-3 rounded-xl bg-slate-50 px-3 py-3 text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/10 text-orange-500">
+                                        <i class="fa-solid fa-location-dot"></i>
+                                    </span>
+                                    <div>
+                                        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Located in</p>
+                                        <p class="text-sm font-semibold text-slate-800">${escapeAttribute(selectedLocation.area)}</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-500 sm:text-right">Tailor these prompts for ${escapeAttribute(selectedLocation.name)}.</p>
+                            </div>
+                        </section>
+                    `;
+
+                    const sections = [spotlightSection];
+                    sections.push(`
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            ${actionCards}
                         </div>
-                    `).join('');
+                    `);
 
                     quickActionsList.innerHTML = `
-                        <div class="flex flex-col gap-6">
-                            <section class="rounded-2xl border border-slate-200/80 bg-white/90 p-6 shadow-sm backdrop-blur">
-                                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                                    <div class="space-y-1">
-                                        <h3 class="text-base font-semibold text-slate-700">Business spotlight</h3>
-                                        <p class="text-xs text-slate-500">Switch lounges to tailor these ready-made prompts.</p>
-                                    </div>
-                                    <div class="sm:w-64">
-                                        <label for="business-select" class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Business</label>
-                                        <select id="business-select" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-200/70">
-                                            ${businessOptions}
-                                        </select>
-                                    </div>
-                                </div>
-                                <p class="mt-4 text-xs text-slate-500">${escapeAttribute(selectedLocation.focus)}</p>
-                                <div class="mt-5 flex flex-col gap-4 rounded-xl bg-slate-50 px-4 py-4 text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <span class="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 text-orange-500">
-                                            <i class="fa-solid fa-location-dot"></i>
-                                        </span>
-                                        <div>
-                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Located in</p>
-                                            <p class="text-sm font-semibold text-slate-800">${escapeAttribute(selectedLocation.area)}</p>
-                                        </div>
-                                    </div>
-                                    <p class="text-xs text-slate-500 sm:text-right">Tailor these prompts for ${escapeAttribute(selectedLocation.name)}.</p>
-                                </div>
-                            </section>
-                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                ${actionCards}
-                            </div>
+                        <div class="flex flex-col gap-5">
+                            ${sections.filter(Boolean).join('')}
                         </div>
                     `;
 
@@ -973,6 +1177,44 @@
                     }
                 }
             };
+
+            const ROLE_LABELS = { manager: 'Manager', ceo: 'CEO' };
+
+            const closeRoleMenu = () => {
+                if (roleSwitcherMenu) {
+                    roleSwitcherMenu.classList.add('hidden');
+                }
+            };
+
+            const updateRoleMenu = () => {
+                if (roleSwitcherLabel) {
+                    roleSwitcherLabel.textContent = ROLE_LABELS[currentRole] || ROLE_LABELS.manager;
+                }
+                if (roleSwitcherMenu) {
+                    roleSwitcherMenu.querySelectorAll('[data-role-option]').forEach(option => {
+                        const isActive = option.dataset.roleOption === currentRole;
+                        option.classList.toggle('bg-orange-50', isActive);
+                        option.classList.toggle('font-semibold', isActive);
+                    });
+                }
+            };
+
+            const setRole = (role) => {
+                if (role !== 'manager' && role !== 'ceo') return;
+                if (currentRole === role) {
+                    updateRoleMenu();
+                    return;
+                }
+                currentRole = role;
+                try {
+                    localStorage.setItem(STORAGE_KEYS.role, currentRole);
+                } catch (error) {
+                    console.warn('Unable to persist role preference', error);
+                }
+                updateRoleMenu();
+                render.quickActions();
+            };
+
             if (quickActionsList) {
                 const handleQuickAction = (card) => {
                     if (!card) return;
@@ -1007,6 +1249,34 @@
                     if (!card) return;
                     event.preventDefault();
                     handleQuickAction(card);
+                });
+            }
+
+            if (roleSwitcherBtn && roleSwitcherMenu) {
+                roleSwitcherBtn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    roleSwitcherMenu.classList.toggle('hidden');
+                });
+
+                roleSwitcherMenu.addEventListener('click', (event) => {
+                    const option = event.target.closest('[data-role-option]');
+                    if (!option) return;
+                    event.preventDefault();
+                    closeRoleMenu();
+                    setRole(option.dataset.roleOption);
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!roleSwitcherMenu || roleSwitcherMenu.classList.contains('hidden')) return;
+                    if (roleSwitcherMenu.contains(event.target) || roleSwitcherBtn.contains(event.target)) return;
+                    closeRoleMenu();
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        closeRoleMenu();
+                    }
                 });
             }
 
@@ -1852,6 +2122,7 @@
                 chatForm.addEventListener('submit', handleChatSubmit);
                 tools = await api.getTools();
                 render.tools();
+                updateRoleMenu();
                 render.quickActions();
                 activateTab('tools');
                 setupRecognition(currentLang);
