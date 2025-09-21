@@ -835,40 +835,47 @@
                     toolCatalog.innerHTML = `
                         <div class="flex flex-col gap-6">
                             ${Object.entries(groupedTools).map(([category, toolList]) => `
-                                <section class="rounded-2xl border border-slate-200/80 bg-white/80 p-6 shadow-sm backdrop-blur">
-                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <div class="space-y-1">
-                                            <span class="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-orange-500/80">
-                                                <i class="fa-solid fa-layer-group"></i>
-                                                ${category}
-                                            </span>
-                                            <p class="text-xs text-slate-500">Essential tools to accelerate ${category.toLowerCase()} workflows.</p>
-                                        </div>
-                                        <div class="hidden sm:flex sm:items-center sm:gap-2 text-[11px] font-medium text-slate-400">
-                                            <i class="fa-regular fa-circle"></i>
-                                            Click a card to preload the chat input.
-                                        </div>
+                                <section class="rounded-3xl border border-slate-200/70 bg-white/80 p-6 shadow-sm backdrop-blur">
+                                    <div class="flex flex-col gap-2">
+                                        <span class="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-orange-500/80">
+                                            <i class="fa-solid fa-layer-group"></i>
+                                            ${category}
+                                        </span>
+                                        <h3 class="text-lg font-semibold text-slate-800">Curated tools for ${category.toLowerCase()} excellence</h3>
+                                        <p class="text-sm text-slate-500">Explore beautifully organised actions that keep your team moving fast.</p>
                                     </div>
-                                    <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                                         ${toolList.map(tool => {
                                             const schema = toolSchemas[tool.name];
                                             const safeDescription = escapeAttribute(tool.description || '');
-                                            return `<button type="button" data-example="${tool.name}" class="tool-item tool-card group w-full text-left rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500/60">
-                                                <div class="flex items-start gap-4">
-                                                    <div class="h-12 w-12 flex items-center justify-center rounded-xl bg-orange-500/10 text-orange-600">
-                                                        <i class="fa-solid ${schema.icon} text-lg"></i>
+                                            const safeTitle = escapeAttribute(schema.title || 'Tool');
+                                            const safeTitleToken = escapeAttribute((schema.title || '').split(' ')[0] || 'Tool');
+                                            return `<button type="button" data-example="${tool.name}" class="tool-item group relative w-full overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-orange-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500/60">
+                                                <div class="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-slate-100 opacity-0 transition duration-200 group-hover:opacity-100"></div>
+                                                <div class="relative flex h-full flex-col gap-6">
+                                                    <div class="flex items-center justify-between gap-4">
+                                                        <span class="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-medium text-orange-600">
+                                                            <i class="fa-solid ${schema.icon}"></i>
+                                                            ${safeTitleToken}
+                                                        </span>
+                                                        <span class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/60 bg-white text-slate-400 transition group-hover:border-orange-200 group-hover:text-orange-500">
+                                                            <i class="fa-solid fa-bolt"></i>
+                                                        </span>
                                                     </div>
                                                     <div class="space-y-2">
-                                                        <h4 class="text-base font-semibold text-slate-800">${schema.title}</h4>
+                                                        <h4 class="text-lg font-semibold text-slate-800 transition group-hover:text-orange-600">${safeTitle}</h4>
                                                         <p class="text-sm leading-relaxed text-slate-500">${safeDescription}</p>
                                                     </div>
-                                                </div>
-                                                <div class="mt-6 flex items-center justify-between text-[11px] font-medium text-slate-500">
-                                                    <span class="inline-flex items-center gap-2">
-                                                        <i class="fa-solid fa-bolt text-orange-500"></i>
-                                                        Trigger instantly
-                                                    </span>
-                                                    <i class="fa-solid fa-arrow-up-right text-slate-400 transition group-hover:text-orange-500"></i>
+                                                    <div class="mt-auto flex items-center justify-between text-xs font-medium text-slate-400 transition group-hover:text-orange-50">
+                                                        <span class="inline-flex items-center gap-2">
+                                                            <i class="fa-regular fa-circle-dot"></i>
+                                                            Built for ${category.toLowerCase()}
+                                                        </span>
+                                                        <span class="inline-flex items-center gap-2 text-sm font-semibold text-orange-500 transition group-hover:text-white">
+                                                            Launch
+                                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </button>`;
                                         }).join('')}
