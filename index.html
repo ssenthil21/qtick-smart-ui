@@ -81,6 +81,13 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 25px -15px rgba(15, 23, 42, 0.4);
         }
+        .tool-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .tool-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 18px 35px -25px rgba(15, 23, 42, 0.45);
+        }
     </style>
 </head>
 <body class="text-slate-800">
@@ -232,6 +239,12 @@
                 { label: "Business trends", prompt: "Give me the latest business trends", icon: "fa-chart-line", accent: "bg-blue-100 text-blue-600" },
                 { label: "Business report", prompt: "Generate a business performance report", icon: "fa-chart-pie", accent: "bg-emerald-100 text-emerald-600" },
                 { label: "Review count", prompt: "What is the current review count?", icon: "fa-star", accent: "bg-amber-100 text-amber-600" }
+            ];
+            const businessOptions = [
+                { label: 'Select a business', value: '' },
+                { label: 'QTick Wellness Hub', value: 'QTick Wellness Hub' },
+                { label: 'Glow & Grow Spa', value: 'Glow & Grow Spa' },
+                { label: 'The Style Lounge', value: 'The Style Lounge' }
             ];
 
             const api = {
@@ -723,17 +736,33 @@
                         return acc;
                     }, {});
                     toolCatalog.innerHTML = Object.entries(groupedTools).map(([category, toolList]) => `
-                        <div>
-                            <h3 class="font-bold text-slate-500 text-sm mb-2">${category}</h3>
-                            <div class="space-y-2">
+                        <section class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-semibold text-slate-500 text-xs uppercase tracking-wide">${category}</h3>
+                                <span class="text-[10px] font-medium text-slate-400">${toolList.length} tools</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 ${toolList.map(tool => {
                                     const schema = toolSchemas[tool.name];
-                                    return `<div data-example="${tool.name}" class="tool-item border p-3 rounded-md hover:bg-slate-50 cursor-pointer">
-                                        <h4 class="font-bold text-slate-800"><i class="fa-solid ${schema.icon} mr-2 text-orange-500 w-5"></i>${schema.title}</h4>
-                                    </div>`;
+                                    const safeDescription = escapeAttribute(tool.description || '');
+                                    return `<button type="button" data-example="${tool.name}" class="tool-item tool-card w-full text-left rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500/60">
+                                        <div class="flex items-start gap-3">
+                                            <div class="h-11 w-11 flex items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                                                <i class="fa-solid ${schema.icon} text-lg"></i>
+                                            </div>
+                                            <div class="space-y-1">
+                                                <h4 class="font-semibold text-slate-800">${schema.title}</h4>
+                                                <p class="text-xs text-slate-500 leading-snug">${safeDescription}</p>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 flex items-center text-xs font-medium text-orange-500">
+                                            <i class="fa-solid fa-bolt mr-2"></i>
+                                            Use tool
+                                        </div>
+                                    </button>`;
                                 }).join('')}
                             </div>
-                        </div>
+                        </section>
                     `).join('');
                     toolCatalog.querySelectorAll('.tool-item').forEach(item => item.addEventListener('click', () => {
                         chatInput.value = item.dataset.example;
@@ -743,21 +772,36 @@
                 quickActions: () => {
                     if (!quickActionsList) return;
                     quickActionsList.innerHTML = `
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            ${quickActions.map((action, index) => `
-                                <button type="button" data-prompt="${action.prompt.replace(/"/g, '&quot;')}" class="quick-action-card w-full border border-slate-200 rounded-xl bg-white px-4 py-4 text-left shadow-sm hover:border-orange-300">
-                                    <div class="flex items-center gap-3">
-                                        <div class="h-12 w-12 rounded-full flex items-center justify-center ${action.accent}">
-                                            <i class="fa-solid ${action.icon} text-lg"></i>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="business-select" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Business context</label>
+                                <div class="relative">
+                                    <select id="business-select" class="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-3 pr-10 text-sm text-slate-700 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100">
+                                        ${businessOptions.map(option => {
+                                            const safeValue = escapeAttribute(option.value);
+                                            const safeLabel = escapeAttribute(option.label);
+                                            return `<option value="${safeValue}">${safeLabel}</option>`;
+                                        }).join('')}
+                                    </select>
+                                    <i class="fa-solid fa-store text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                ${quickActions.map((action, index) => `
+                                    <button type="button" data-prompt="${action.prompt.replace(/"/g, '&quot;')}" class="quick-action-card w-full border border-slate-200 rounded-xl bg-white px-4 py-4 text-left shadow-sm hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500/60">
+                                        <div class="flex items-center gap-3">
+                                            <div class="h-12 w-12 rounded-full flex items-center justify-center ${action.accent}">
+                                                <i class="fa-solid ${action.icon} text-lg"></i>
+                                            </div>
+                                            <div class="flex-1">
+                                                <p class="font-semibold text-slate-700">${action.label}</p>
+                                                <p class="text-xs text-slate-500 mt-1">QA-${index + 1}</p>
+                                            </div>
+                                            <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
                                         </div>
-                                        <div class="flex-1">
-                                            <p class="font-semibold text-slate-700">${action.label}</p>
-                                            <p class="text-xs text-slate-500 mt-1">QA-${index + 1}</p>
-                                        </div>
-                                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
-                                    </div>
-                                </button>
-                            `).join('')}
+                                    </button>
+                                `).join('')}
+                            </div>
                         </div>
                     `;
                 }
@@ -766,7 +810,10 @@
                 const card = event.target.closest('.quick-action-card[data-prompt]');
                 if (!card) return;
                 const prompt = card.dataset.prompt;
-                chatInput.value = prompt;
+                const businessSelect = document.getElementById('business-select');
+                const selectedBusiness = businessSelect ? businessSelect.value : '';
+                const promptWithBusiness = selectedBusiness ? `${prompt} for ${selectedBusiness}` : prompt;
+                chatInput.value = promptWithBusiness;
                 chatInput.focus();
                 chatForm.dispatchEvent(new Event('submit', { bubbles: true }));
             });
