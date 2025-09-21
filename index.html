@@ -206,62 +206,68 @@
                 },
                 runAgent: async (prompt) => {
                     const lowerCasePrompt = prompt.toLowerCase();
-                    
-                    // MOCK HANDLER FOR RICH CONTENT DEMO
+
+                    const mockResponses = {
+                        appointmentList: {
+                            output: "Here are the upcoming appointments I found.",
+                            tool: "Appointment",
+                            dataPoints: [
+                                { status: "confirmed", appointmentId: "APT-001", queueNumber: "A01", businessId: 1003, customer: "Senthil", serviceId: 200, datetime: "2025-09-22T18:00:00+08:00" },
+                                { status: "confirmed", appointmentId: "APT-002", queueNumber: "B02", businessId: 1003, customer: "Jane Doe", serviceId: 201, datetime: "2025-09-23T11:00:00+08:00" },
+                                { status: "pending", appointmentId: "APT-003", queueNumber: "C03", businessId: 1003, customer: "John Smith", serviceId: 202, datetime: "2025-09-23T14:00:00+08:00" }
+                            ]
+                        },
+                        appointmentSlots: {
+                            output: "I found a few available slots for tomorrow.",
+                            tool: "Appointment",
+                            dataPoints: [
+                                { status: "available", appointmentId: "SLOT-100", queueNumber: "-", businessId: 1003, customer: "", serviceId: 301, datetime: "2025-09-22T10:00:00+08:00" },
+                                { status: "available", appointmentId: "SLOT-101", queueNumber: "-", businessId: 1003, customer: "", serviceId: 302, datetime: "2025-09-22T14:30:00+08:00" },
+                                { status: "available", appointmentId: "SLOT-102", queueNumber: "-", businessId: 1003, customer: "", serviceId: 303, datetime: "2025-09-22T16:00:00+08:00" }
+                            ]
+                        },
+                        invoice: {
+                            output: "Invoice INV-00001 for Alex has been created successfully. The total amount is 52.0 SGD. You can pay via this link: https://pay.qtick.co/INV-00001",
+                            tool: "Invoice",
+                            dataPoints: [
+                                {
+                                    invoiceId: "INV-00001",
+                                    total: 52.0,
+                                    currency: "SGD",
+                                    status: "created",
+                                    createdAt: "2025-09-21T06:22:15.421334+00:00",
+                                    paymentLink: "https://pay.qtick.co/INV-00001",
+                                    items: [
+                                        { description: "Haircut", quantity: 1, unitPrice: 25, taxRate: 0.08 },
+                                        { description: "Hair serum", quantity: 2, unitPrice: 12.5 }
+                                    ],
+                                    customer: "Alex",
+                                    businessId: 123
+                                }
+                            ]
+                        },
+                        fallback: {
+                            output: "I'm ready when you are! How can I help today?",
+                            tool: null,
+                            dataPoints: []
+                        }
+                    };
+
                     if (lowerCasePrompt.includes("list appointment")) {
                         await new Promise(r => setTimeout(r, 1000));
-                        return {
-                            confirmation_text: "Here are the upcoming appointments I found.",
-                            display: {
-                                type: 'table',
-                                content: {
-                                    title: "Upcoming Appointments",
-                                    headers: ["ID", "Customer", "Service", "Date & Time", "Status"],
-                                    rows: [
-                                        ["APT-001", "Senthil", "Facial", "2025-09-22 18:00", "Confirmed"],
-                                        ["APT-002", "Jane Doe", "Haircut", "2025-09-23 11:00", "Confirmed"],
-                                        ["APT-003", "John Smith", "Massage", "2025-09-23 14:00", "Pending"]
-                                    ]
-                                }
-                            }
-                        };
-                    } else if (lowerCasePrompt.includes("available appointment")) {
-                        await new Promise(r => setTimeout(r, 1000));
-                        return {
-                            confirmation_text: "I found a few available slots for tomorrow.",
-                            display: {
-                                type: 'cards',
-                                content: {
-                                    title: "Available Slots for Tomorrow",
-                                    items: [
-                                        { title: "10:00 AM", details: "With Stylist Anna" },
-                                        { title: "02:30 PM", details: "With Stylist Mark" },
-                                        { title: "04:00 PM", details: "With Stylist Anna" }
-                                    ]
-                                }
-                            }
-                        };
-                    } else if (lowerCasePrompt.includes("invoice")) {
-                        await new Promise(r => setTimeout(r, 1000));
-                        return {
-                            confirmation_text: "I've created the invoice for Senthil Kumar.",
-                            display: {
-                                type: 'invoice',
-                                content: {
-                                    title: "Invoice #INV-123",
-                                    customer: "Senthil Kumar",
-                                    items: [
-                                        { description: "Facial Treatment", amount: "65.00" },
-                                        { description: "Service Charge", amount: "5.00" }
-                                    ],
-                                    subtotal: "70.00",
-                                    tax: "4.90",
-                                    total: "74.90"
-                                }
-                            }
-                        };
+                        return mockResponses.appointmentList;
                     }
-                    
+
+                    if (lowerCasePrompt.includes("available appointment")) {
+                        await new Promise(r => setTimeout(r, 1000));
+                        return mockResponses.appointmentSlots;
+                    }
+
+                    if (lowerCasePrompt.includes("invoice")) {
+                        await new Promise(r => setTimeout(r, 1000));
+                        return mockResponses.invoice;
+                    }
+
                     // FALLBACK TO LIVE API with TIMEOUT
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 seconds timeout
@@ -273,7 +279,7 @@
                             body: JSON.stringify({ prompt: prompt }),
                             signal: controller.signal
                         });
-                        
+
                         clearTimeout(timeoutId);
 
                         if (!response.ok) {
@@ -375,6 +381,14 @@
                     chatHistory.scrollTop = chatHistory.scrollHeight;
                     return id;
                 },
+                removeMessage: (id) => {
+                    const msg = document.getElementById(id);
+                    if (msg) {
+                        const wrapper = msg.parentElement;
+                        if (wrapper) wrapper.remove();
+                        else msg.remove();
+                    }
+                },
                 updateMessage: (id, newContent, isRich = false) => {
                     const msg = document.getElementById(id);
                     if(msg) {
@@ -410,6 +424,157 @@
             };
             
             // --- MAIN CHAT LOGIC ---
+            function formatTextContent(text) {
+                if (!text) return '';
+                const escaped = text
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br>');
+                return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" class="text-orange-600 underline">$1</a>');
+            }
+
+            function formatCurrency(value, currency) {
+                if (value === null || value === undefined || value === '') return '-';
+                const num = Number(value);
+                if (!Number.isFinite(num)) return `${value}${currency ? ` ${currency}` : ''}`;
+                if (currency) {
+                    try {
+                        return new Intl.NumberFormat(undefined, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+                    } catch (error) {
+                        return `${num.toFixed(2)} ${currency}`;
+                    }
+                }
+                return num.toFixed(2);
+            }
+
+            function formatDateTime(value) {
+                if (!value) return '-';
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) return value;
+                return date.toLocaleString();
+            }
+
+            function buildToolDisplay(tool, dataPoints) {
+                if (!tool || !Array.isArray(dataPoints) || !dataPoints.length) return null;
+
+                const builders = {
+                    Invoice: (records) => {
+                        const invoice = records[0] || {};
+                        const currency = invoice.currency;
+                        const items = Array.isArray(invoice.items) ? invoice.items.map(item => {
+                            const quantity = item.quantity ?? 1;
+                            const unitPrice = item.unitPrice !== undefined ? formatCurrency(item.unitPrice, currency) : '-';
+                            const lineTotal = item.unitPrice !== undefined ? formatCurrency(quantity * item.unitPrice, currency) : '-';
+                            const taxRate = item.taxRate !== undefined ? `${Math.round(item.taxRate * 100)}%` : '-';
+                            return `
+                                <tr>
+                                    <td class="py-2 text-sm text-slate-600">${item.description || '-'}</td>
+                                    <td class="py-2 text-sm text-slate-600 text-center">${quantity}</td>
+                                    <td class="py-2 text-sm text-slate-600 text-right">${unitPrice}</td>
+                                    <td class="py-2 text-sm text-slate-600 text-right">${taxRate}</td>
+                                    <td class="py-2 text-sm text-slate-600 text-right">${lineTotal}</td>
+                                </tr>
+                            `;
+                        }).join('') : '';
+
+                        return `
+                            <div class="chat-response-container space-y-4">
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                    <div>
+                                        <h4>Invoice ${invoice.invoiceId || ''}</h4>
+                                        <p class="text-sm text-slate-500">Customer: ${invoice.customer || '-'}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm uppercase text-slate-500">Total Due</p>
+                                        <p class="text-xl font-bold text-orange-600">${formatCurrency(invoice.total, currency)}</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm text-slate-600">
+                                    <div><span class="block font-semibold text-slate-700">Status</span>${invoice.status || '-'}</div>
+                                    <div><span class="block font-semibold text-slate-700">Created</span>${invoice.createdAt ? new Date(invoice.createdAt).toLocaleString() : '-'}</div>
+                                    <div><span class="block font-semibold text-slate-700">Business ID</span>${invoice.businessId ?? '-'}</div>
+                                    <div><span class="block font-semibold text-slate-700">Payment Link</span>${invoice.paymentLink ? `<a href="${invoice.paymentLink}" target="_blank" class="text-orange-600 underline break-all">Pay now</a>` : '-'}</div>
+                                </div>
+                                ${items ? `
+                                    <div>
+                                        <h5 class="font-semibold text-slate-700 mb-2">Items</h5>
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full text-left">
+                                                <thead>
+                                                    <tr class="text-xs uppercase tracking-wide text-slate-500">
+                                                        <th class="pb-2">Description</th>
+                                                        <th class="pb-2 text-center">Qty</th>
+                                                        <th class="pb-2 text-right">Unit Price</th>
+                                                        <th class="pb-2 text-right">Tax</th>
+                                                        <th class="pb-2 text-right">Line Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-200">${items}</tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    },
+                    Appointment: (records) => {
+                        if (records.length > 1) {
+                            const rows = records.map(record => `
+                                <tr>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.appointmentId || record.queueNumber || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.customer || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${formatDateTime(record.datetime)}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.status || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.queueNumber || '-'}</td>
+                                </tr>
+                            `).join('');
+
+                            return `
+                                <div class="chat-response-container">
+                                    <h4>Appointments</h4>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full">
+                                            <thead>
+                                                <tr>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">ID</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Customer</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Date & Time</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Status</th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Queue</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-200">${rows}</tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        const appointment = records[0];
+                        return `
+                            <div class="chat-response-container space-y-4">
+                                <h4>Appointment ${appointment.appointmentId || ''}</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                                    <div><span class="block font-semibold text-slate-700">Customer</span>${appointment.customer || '-'}</div>
+                                    <div><span class="block font-semibold text-slate-700">Status</span>${appointment.status || '-'}</div>
+                                    <div><span class="block font-semibold text-slate-700">Date & Time</span>${formatDateTime(appointment.datetime)}</div>
+                                    <div><span class="block font-semibold text-slate-700">Queue Number</span>${appointment.queueNumber || '-'}</div>
+                                    <div><span class="block font-semibold text-slate-700">Service ID</span>${appointment.serviceId ?? '-'}</div>
+                                    <div><span class="block font-semibold text-slate-700">Business ID</span>${appointment.businessId ?? '-'}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                };
+
+                if (builders[tool]) {
+                    return builders[tool](dataPoints);
+                }
+
+                return `<div class="chat-response-container"><h4>${tool} Details</h4><pre class="text-sm text-slate-600 whitespace-pre-wrap">${JSON.stringify(dataPoints, null, 2)}</pre></div>`;
+            }
+
             async function handleChatSubmit(e) {
                 e.preventDefault();
                 const prompt = chatInput.value.trim();
@@ -417,33 +582,32 @@
 
                 render.addMessageToChat(`<p>${prompt}</p>`, true);
                 chatInput.value = '';
-                
+
                 const thinkingMessageId = render.addMessageToChat(`<div class="bg-slate-200 text-slate-800 p-3 rounded-lg"><p class="italic text-slate-500 thinking-bubble">Connecting to agent</p></div>`, false);
 
                 try {
                     const response = await api.runAgent(prompt);
-                    
-                    const confirmationText = response.confirmation_text || response.output;
-                    const displayData = response.display;
-                    let hasRenderedConfirmation = false;
 
-                    if (confirmationText) {
-                        render.updateMessage(thinkingMessageId, `<p>${confirmationText}</p>`, false);
-                        speak(confirmationText, currentLang);
-                        hasRenderedConfirmation = true;
+                    const textResponse = formatTextContent(response.output || response.confirmation_text);
+                    if (textResponse) {
+                        render.updateMessage(thinkingMessageId, `<p>${textResponse}</p>`, false);
+                        speak(response.output || response.confirmation_text, currentLang);
+                    } else {
+                        render.removeMessage(thinkingMessageId);
                     }
 
-                    if (displayData && displayData.type && render[displayData.type]) {
-                        const contentHtml = render[displayData.type](displayData.content);
-                        
-                        if (hasRenderedConfirmation) {
-                            render.addMessageToChat(contentHtml, false);
-                        } else {
-                            render.updateMessage(thinkingMessageId, contentHtml, true);
-                        }
-                    } else if (!hasRenderedConfirmation) {
-                        const parent = document.getElementById(thinkingMessageId)?.parentElement;
-                        if(parent) parent.remove();
+                    const normalizedDataPoints = Array.isArray(response.dataPoints)
+                        ? response.dataPoints
+                        : response.dataPoints
+                            ? [response.dataPoints]
+                            : [];
+
+                    const toolContent = buildToolDisplay(response.tool, normalizedDataPoints);
+                    if (toolContent) {
+                        render.addMessageToChat(toolContent, false);
+                    }
+
+                    if (!textResponse && !toolContent) {
                         showToast("Received an empty or invalid response from the agent.", true);
                     }
 
