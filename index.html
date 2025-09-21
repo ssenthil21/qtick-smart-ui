@@ -482,6 +482,58 @@
                 return date.toLocaleString();
             }
 
+            function escapeAttribute(value) {
+                if (value === null || value === undefined) return '';
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+
+            function getLeadName(record) {
+                if (!record || typeof record !== 'object') return '-';
+
+                const nameParts = [];
+                if (record.firstName) nameParts.push(String(record.firstName).trim());
+                if (record.lastName) nameParts.push(String(record.lastName).trim());
+                const combined = nameParts.filter(Boolean).join(' ').trim();
+                if (combined) return combined;
+
+                const candidateKeys = ['name', 'customerName', 'leadName', 'customer', 'contactName', 'fullName'];
+                for (const key of candidateKeys) {
+                    const value = record[key];
+                    if (value !== null && value !== undefined) {
+                        const text = String(value).trim();
+                        if (text) return text;
+                    }
+                }
+
+                return '-';
+            }
+
+            function formatSlotDisplay(value) {
+                if (!value) {
+                    return { displayDate: '', displayTime: '', iso: value };
+                }
+
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) {
+                    return { displayDate: value, displayTime: '', iso: value };
+                }
+
+                return {
+                    displayDate: date.toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    }),
+                    displayTime: date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+                    iso: value
+                };
+            }
+
             function buildToolDisplay(tool, dataPoints) {
                 if (!tool || !Array.isArray(dataPoints) || !dataPoints.length) return null;
 
@@ -581,6 +633,36 @@
                         }
 
                         const appointment = records[0];
+                        const suggestedSlots = Array.isArray(appointment.suggestedSlots)
+                            ? appointment.suggestedSlots.filter(Boolean)
+                            : [];
+                        const suggestedSlotsMarkup = suggestedSlots.length
+                            ? `
+                                <div class="space-y-2">
+                                    <h5 class="font-semibold text-slate-700">Available times</h5>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        ${suggestedSlots.map(slot => {
+                                            const display = formatSlotDisplay(slot);
+                                            const hasBoth = display.displayDate && display.displayTime;
+                                            const primaryLabel = display.displayTime || display.displayDate || slot;
+                                            const secondaryLabel = hasBoth ? display.displayDate : '';
+                                            return `
+                                                <button type="button" class="suggested-slot-card border border-slate-200 rounded-lg p-3 text-left bg-slate-50 hover:bg-orange-50 hover:border-orange-200 transition flex flex-col gap-1" data-slot="${escapeAttribute(slot)}" data-customer="${escapeAttribute(appointment.customer || appointment.name || '')}" data-business="${escapeAttribute(appointment.businessId ?? '')}" data-service="${escapeAttribute(appointment.serviceId ?? '')}">
+                                                    <span class="text-sm font-semibold text-slate-700">${primaryLabel}</span>
+                                                    ${secondaryLabel ? `<span class="text-xs text-slate-500">${secondaryLabel}</span>` : ''}
+                                                </button>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                    <p class="text-xs text-slate-500">Select a time to update your request.</p>
+                                </div>
+                            `
+                            : '';
+
+                        const statusMessage = appointment.message
+                            ? `<p class="text-sm text-slate-600 bg-orange-50 border border-orange-200 p-3 rounded-md">${appointment.message}</p>`
+                            : '';
+
                         return `
                             <div class="chat-response-container space-y-4">
                                 <h4>Appointment ${appointment.appointmentId || appointment.queueNumber || ''}</h4>
@@ -592,6 +674,8 @@
                                     <div><span class="block font-semibold text-slate-700">Service ID</span>${appointment.serviceId ?? '-'}</div>
                                     <div><span class="block font-semibold text-slate-700">Business ID</span>${appointment.businessId ?? '-'}</div>
                                 </div>
+                                ${statusMessage}
+                                ${suggestedSlotsMarkup}
                             </div>
                         `;
                     },
@@ -602,7 +686,7 @@
                             const rows = records.map(record => `
                                 <tr>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.leadId || record.id || '-'}</td>
-                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.name || record.customerName || '-'}</td>
+                                    <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${getLeadName(record)}</td>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.phone || record.phoneNumber || '-'}</td>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.email || '-'}</td>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.source || '-'}</td>
@@ -633,9 +717,13 @@
                         }
 
                         const lead = records[0];
+                        const leadName = getLeadName(lead);
+                        const leadTitle = (lead.leadId || (leadName !== '-' ? leadName : '') || '').toString().trim();
+                        const leadHeading = leadTitle ? `Lead ${leadTitle}` : 'Lead';
+
                         const detailRows = [
                             { label: 'Lead ID', value: lead.leadId || lead.id || '-' },
-                            { label: 'Name', value: lead.name || lead.customerName || '-' },
+                            { label: 'Name', value: leadName },
                             { label: 'Phone', value: lead.phone || lead.phoneNumber || '-' },
                             { label: 'Email', value: lead.email || '-' },
                             { label: 'Source', value: lead.source || '-' },
@@ -647,7 +735,7 @@
 
                         return `
                             <div class="chat-response-container space-y-4">
-                                <h4>Lead ${lead.leadId || lead.name || ''}</h4>
+                                <h4>${leadHeading}</h4>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
                                     ${displayDetails.map(item => `<div><span class="block font-semibold text-slate-700">${item.label}</span>${item.value || '-'}</div>`).join('')}
                                 </div>
@@ -669,6 +757,43 @@
 
                 return `<div class="chat-response-container"><h4>${tool} Details</h4><pre class="text-sm text-slate-600 whitespace-pre-wrap">${JSON.stringify(dataPoints, null, 2)}</pre></div>`;
             }
+
+            chatHistory.addEventListener('click', (event) => {
+                const card = event.target.closest('.suggested-slot-card');
+                if (!card) return;
+
+                const slot = card.dataset.slot || '';
+                const customer = (card.dataset.customer || '').trim();
+                const business = (card.dataset.business || '').trim();
+                const service = (card.dataset.service || '').trim();
+                const display = formatSlotDisplay(slot);
+                const readable = [display.displayDate, display.displayTime].filter(Boolean).join(' at ');
+
+                const parts = ['Please book the appointment'];
+                if (customer) parts.push(`for ${customer}`);
+                if (business) parts.push(`at business ${business}`);
+                if (service) parts.push(`for service ${service}`);
+
+                let prompt = parts.join(' ');
+                if (readable) {
+                    prompt += ` on ${readable}`;
+                } else if (slot) {
+                    prompt += ` on ${slot}`;
+                }
+
+                if (slot && readable) {
+                    prompt += ` (${slot})`;
+                }
+
+                prompt = prompt.trim();
+                if (!prompt.endsWith('.')) {
+                    prompt += '.';
+                }
+
+                chatInput.value = prompt;
+                chatInput.focus();
+                showToast(readable ? `Updated request for ${readable}` : 'Updated request with selected time.');
+            });
 
             async function handleChatSubmit(e) {
                 e.preventDefault();
