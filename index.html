@@ -9,10 +9,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f1f5f9; /* slate-100 */
+            background-color: #f1f5f9;
         }
         .agentic-pane {
             background-color: white;
@@ -55,9 +56,8 @@
             70% { box-shadow: 0 0 0 10px rgba(234, 88, 12, 0); }
             100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0); }
         }
-        /* Styles for rich content rendering */
         .chat-response-container {
-            border: 1px solid #e2e8f0; /* slate-200 */
+            border: 1px solid #e2e8f0;
             padding: 0.75rem;
             border-radius: 0.5rem;
             background-color: white;
@@ -65,7 +65,21 @@
         .chat-response-container h4 {
             font-weight: 700;
             margin-bottom: 0.75rem;
-            color: #1e293b; /* slate-800 */
+            color: #1e293b;
+        }
+        .appointment-row {
+            cursor: pointer;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .appointment-row:hover {
+            background-color: #fff7ed;
+        }
+        .quick-action-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .quick-action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -15px rgba(15, 23, 42, 0.4);
         }
     </style>
 </head>
@@ -80,23 +94,20 @@
                 <button id="tts-toggle-btn" class="text-slate-400 hover:text-orange-600" title="Toggle Voice Response">
                     <i class="fa-solid fa-volume-xmark"></i>
                 </button>
-                 <button id="settings-btn" class="text-slate-500 hover:text-orange-600">
+                <button id="settings-btn" class="text-slate-500 hover:text-orange-600">
                     <i class="fa-solid fa-cog text-xl"></i>
                 </button>
             </div>
         </nav>
     </header>
 
-    <!-- Main layout updated to 5 columns -->
     <main class="container mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
-        
-        <!-- Center Pane: Chat Window (3 cols) -->
         <div class="lg:col-span-3 agentic-pane main-pane-height relative">
             <h2 class="text-lg font-bold p-4 border-b text-slate-700">Agent Chat</h2>
             <div id="chat-history" class="flex-grow p-4 space-y-4 overflow-y-auto">
                 <div class="flex">
                     <div class="bg-slate-200 text-slate-800 p-3 rounded-lg max-w-md">
-                        <p>I can now display data in tables, cards, and invoice summaries. Try asking me to "list appointments".</p>
+                        <p>I can now display data in tables, cards, and invoice summaries. Try asking me to \"list appointments\".</p>
                     </div>
                 </div>
             </div>
@@ -108,58 +119,55 @@
                     <button type="button" id="attach-btn" class="bg-slate-200 text-slate-600 font-semibold p-2.5 rounded-md hover:bg-slate-300 transition flex-shrink-0 h-10 w-10"><i class="fa-solid fa-paperclip"></i></button>
                     <input id="chat-input" placeholder="Enter your goal..." class="flex-grow w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" />
                     <button type="button" id="mic-btn" class="bg-orange-500 text-white font-semibold p-2.5 rounded-md hover:bg-orange-600 transition flex-shrink-0 h-10 w-10"><i class="fa-solid fa-microphone"></i></button>
-                    <button type="submit" class="bg-orange-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-700 transition flex-shrink-0">
-                        Run
-                    </button>
+                    <button type="submit" class="bg-orange-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-700 transition flex-shrink-0">Run</button>
                 </form>
             </div>
             <div id="drag-overlay" class="absolute inset-0 z-10 hidden items-center justify-center bg-opacity-75 backdrop-blur-sm drag-overlay">
-                 <div class="text-center text-white p-6 border-4 border-dashed rounded-xl">
+                <div class="text-center text-white p-6 border-4 border-dashed rounded-xl">
                     <i class="fa-solid fa-upload fa-3x"></i>
                     <p class="mt-4 text-xl font-bold">Drop file to upload</p>
                 </div>
             </div>
         </div>
-        
-        <!-- Right Column Wrapper (2 cols) -->
+
         <div class="lg:col-span-2 flex flex-col gap-6">
             <div class="agentic-pane flex-1 overflow-hidden">
-                 <h2 class="text-lg font-bold p-4 border-b text-slate-700 flex-shrink-0">Tool Catalog</h2>
-                 <div id="tool-catalog" class="p-4 space-y-3 overflow-y-auto">
-                     <div class="flex items-center justify-center h-full text-slate-400">
+                <h2 class="text-lg font-bold p-4 border-b text-slate-700 flex-shrink-0">Tool Catalog</h2>
+                <div id="tool-catalog" class="p-4 space-y-3 overflow-y-auto">
+                    <div class="flex items-center justify-center h-full text-slate-400">
                         <i class="fa fa-spinner fa-spin mr-2"></i> Loading Tools...
                     </div>
-                 </div>
+                </div>
             </div>
             <div class="agentic-pane flex-1 overflow-hidden">
                 <h2 class="text-lg font-bold p-4 border-b text-slate-700 flex-shrink-0">Quick Actions</h2>
-                <div id="quick-actions-list" class="p-4 space-y-2 overflow-y-auto"></div>
+                <div id="quick-actions-list" class="p-4 overflow-y-auto"></div>
             </div>
         </div>
     </main>
-    
+
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-3"></div>
 
     <div id="settings-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden modal-backdrop">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md modal-content transform scale-95">
-             <div class="flex justify-between items-center p-4 border-b">
+            <div class="flex justify-between items-center p-4 border-b">
                 <h3 class="text-lg font-bold">Settings</h3>
                 <button id="close-modal-btn" class="text-slate-500 hover:text-slate-800 text-2xl">&times;</button>
             </div>
             <div class="p-6 space-y-4">
-                 <div>
+                <div>
                     <label for="language-select" class="block text-sm font-medium text-slate-700 mb-1">Language for Voice</label>
                     <select id="language-select" class="w-full p-2 border rounded-md bg-white">
                         <option value="en-US">English (US)</option>
                         <option value="ta-IN">Tamil (India)</option>
                     </select>
                 </div>
-                 <hr>
-                 <button id="save-settings-btn" class="w-full bg-orange-600 text-white font-semibold py-2 px-3 rounded-md hover:bg-orange-700">Save Settings</button>
+                <hr>
+                <button id="save-settings-btn" class="w-full bg-orange-600 text-white font-semibold py-2 px-3 rounded-md hover:bg-orange-700">Save Settings</button>
             </div>
         </div>
     </div>
-    
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const toolCatalog = document.getElementById('tool-catalog');
@@ -168,10 +176,8 @@
             const chatInput = document.getElementById('chat-input');
             const attachBtn = document.getElementById('attach-btn');
             const fileInput = document.getElementById('file-input');
-            const filePreviewContainer = document.getElementById('file-preview-container');
             const dragOverlay = document.getElementById('drag-overlay');
             const micBtn = document.getElementById('mic-btn');
-            const suggestionChipsContainer = document.getElementById('suggestion-chips-container');
             const ttsToggleBtn = document.getElementById('tts-toggle-btn');
             const toastContainer = document.getElementById('toast-container');
             const settingsBtn = document.getElementById('settings-btn');
@@ -180,11 +186,36 @@
             const saveSettingsBtn = document.getElementById('save-settings-btn');
             const languageSelect = document.getElementById('language-select');
             const quickActionsList = document.getElementById('quick-actions-list');
-            
+
             let tools = [];
             let voiceEnabled = false;
             let currentLang = 'en-US';
-            
+            let recognition;
+            let speechSubmitting = false;
+
+            const STORAGE_KEYS = {
+                chat: 'qtick-chat-html',
+                context: 'qtick-chat-context'
+            };
+
+            const conversationMemory = {
+                contexts: {},
+                contextOrder: [],
+                lastAppointments: [],
+                lastSlots: [],
+                lastSlotsContextId: null,
+                lastInvoice: null,
+                lastInvoiceContextId: null,
+                lastSelectedAppointment: null,
+                lastSelectedContextId: null,
+                lastCustomer: '',
+                lastAnalytics: null,
+                lastAction: null
+            };
+
+            const activeCharts = {};
+            let contextCounter = 0;
+
             const toolSchemas = {
                 "find_appointment": { title: "Find Appointment", icon: "fa-calendar-check", category: "Scheduling" },
                 "book_appointment": { title: "Book Appointment", icon: "fa-calendar-plus", category: "Scheduling" },
@@ -195,19 +226,21 @@
             };
 
             const quickActions = [
-                { label: "List appointments for a date", prompt: "List appointments for 22 September 2025" },
-                { label: "View invoices by date", prompt: "Show invoices created on 15 September 2025" },
-                { label: "Lead created count by date", prompt: "How many leads were created on 20 September 2025?" },
-                { label: "Business trends", prompt: "Give me the latest business trends" },
-                { label: "Business report", prompt: "Generate a business performance report" },
-                { label: "Review count", prompt: "What is the current review count?" }
+                { label: "List appointments for a date", prompt: "List appointments for 22 September 2025", icon: "fa-calendar-days", accent: "bg-orange-100 text-orange-600" },
+                { label: "View invoices by date", prompt: "Show invoices created on 15 September 2025", icon: "fa-file-invoice", accent: "bg-slate-100 text-slate-600" },
+                { label: "Leads created this week", prompt: "Show me leads created this week", icon: "fa-user-group", accent: "bg-violet-100 text-violet-600" },
+                { label: "Business trends", prompt: "Give me the latest business trends", icon: "fa-chart-line", accent: "bg-blue-100 text-blue-600" },
+                { label: "Business report", prompt: "Generate a business performance report", icon: "fa-chart-pie", accent: "bg-emerald-100 text-emerald-600" },
+                { label: "Review count", prompt: "What is the current review count?", icon: "fa-star", accent: "bg-amber-100 text-amber-600" }
             ];
-            
-            // --- API LOGIC ---
+
             const api = {
                 getTools: async () => {
                     await new Promise(r => setTimeout(r, 500));
-                    return Object.keys(toolSchemas).map(name => ({ name, description: `A tool to ${toolSchemas[name].title.toLowerCase()}.` }));
+                    return Object.keys(toolSchemas).map(name => ({
+                        name,
+                        description: `A tool to ${toolSchemas[name].title.toLowerCase()}.`
+                    }));
                 },
                 runAgent: async (prompt) => {
                     const lowerCasePrompt = prompt.toLowerCase();
@@ -251,6 +284,108 @@
                                 }
                             ]
                         },
+                        analyticsReport: {
+                            output: "Here's the latest performance summary for the business.",
+                            tool: "Analytics",
+                            dataPoints: [
+                                { metric: "Revenue", value: 18250, currency: "SGD", change: 12 },
+                                { metric: "Completed Appointments", value: 42, change: 6 },
+                                { metric: "No-Show Rate", value: 3.2, suffix: "%", change: -1.2 }
+                            ],
+                            insights: [
+                                "Revenue is up 12% compared to the previous week.",
+                                "Color treatments generated the highest revenue share at 38%.",
+                                "Saturday remains the busiest day with 14 confirmed appointments."
+                            ],
+                            chart: {
+                                type: 'line',
+                                data: {
+                                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                                    datasets: [
+                                        {
+                                            label: 'Revenue (SGD)',
+                                            data: [3200, 2800, 3400, 4200, 3600, 3900, 3050],
+                                            borderColor: '#f97316',
+                                            backgroundColor: 'rgba(249, 115, 22, 0.15)',
+                                            fill: true,
+                                            tension: 0.4,
+                                            yAxisID: 'y'
+                                        },
+                                        {
+                                            label: 'Appointments',
+                                            data: [12, 9, 11, 15, 13, 14, 10],
+                                            borderColor: '#6366f1',
+                                            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                                            fill: false,
+                                            tension: 0.3,
+                                            yAxisID: 'y1'
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    interaction: { mode: 'index', intersect: false },
+                                    plugins: {
+                                        legend: { display: true },
+                                        tooltip: { enabled: true }
+                                    },
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            title: { display: true, text: 'Revenue (SGD)' }
+                                        },
+                                        y1: {
+                                            beginAtZero: true,
+                                            position: 'right',
+                                            grid: { drawOnChartArea: false },
+                                            title: { display: true, text: 'Appointments' }
+                                        }
+                                    }
+                                }
+                            },
+                            chartMeta: { range: 'Last 7 days' }
+                        },
+                        leadsSummary: {
+                            output: "Here's how many new leads were created this week.",
+                            tool: "Analytics",
+                            dataPoints: [
+                                { metric: "New Leads", value: 28, change: 8 },
+                                { metric: "Follow-ups Scheduled", value: 19, change: 5 },
+                                { metric: "Lead-to-Customer", value: 32, suffix: "%", change: 2 }
+                            ],
+                            insights: [
+                                "Social media campaigns contributed 45% of new leads.",
+                                "Wednesday saw the highest conversions at 7 customers.",
+                                "Average response time dropped to 1h 45m (12% faster)."
+                            ],
+                            chart: {
+                                type: 'bar',
+                                data: {
+                                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                                    datasets: [
+                                        {
+                                            label: 'New Leads',
+                                            data: [3, 4, 6, 5, 4, 3, 3],
+                                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                                            borderRadius: 8
+                                        }
+                                    ]
+                                },
+                                options: {
+                                    responsive: true,
+                                    plugins: {
+                                        legend: { display: false }
+                                    },
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            title: { display: true, text: 'Leads' }
+                                        }
+                                    }
+                                }
+                            },
+                            chartMeta: { range: 'This week' }
+                        },
                         fallback: {
                             output: "I'm ready when you are! How can I help today?",
                             tool: null,
@@ -261,15 +396,18 @@
                     let fallbackKey = null;
                     if (lowerCasePrompt.includes("list appointment")) {
                         fallbackKey = "appointmentList";
-                    } else if (lowerCasePrompt.includes("available appointment")) {
+                    } else if (lowerCasePrompt.includes("available appointment") || lowerCasePrompt.includes("available slot")) {
                         fallbackKey = "appointmentSlots";
                     } else if (lowerCasePrompt.includes("invoice")) {
                         fallbackKey = "invoice";
+                    } else if (lowerCasePrompt.includes("performance report") || lowerCasePrompt.includes("business report")) {
+                        fallbackKey = "analyticsReport";
+                    } else if (lowerCasePrompt.includes("leads") && (lowerCasePrompt.includes("week") || lowerCasePrompt.includes("this week"))) {
+                        fallbackKey = "leadsSummary";
                     }
 
-                    // FALLBACK TO LIVE API with TIMEOUT
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 seconds timeout
+                    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
                     try {
                         const response = await fetch("https://qtick-mcp.onrender.com/agent/run", {
@@ -288,7 +426,6 @@
                                     throw new Error(errorBody.detail);
                                 }
                             } catch (e) {
-                                // If parsing JSON fails or no 'detail' field, fall back to status text
                                 throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
                             }
                         }
@@ -306,11 +443,7 @@
                     }
                 }
             };
-
-            // --- SPEECH RECOGNITION & SYNTHESIS ---
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            let recognition;
-            let speechSubmitting = false;
 
             function setupRecognition(lang) {
                 if (!SpeechRecognition) {
@@ -323,8 +456,14 @@
                 recognition.continuous = false;
                 recognition.interimResults = false;
 
-                recognition.onstart = () => { micBtn.classList.add('listening', 'bg-red-500'); micBtn.classList.remove('bg-orange-500'); };
-                recognition.onend = () => { micBtn.classList.remove('listening', 'bg-red-500'); micBtn.classList.add('bg-orange-500'); };
+                recognition.onstart = () => {
+                    micBtn.classList.add('listening', 'bg-red-500');
+                    micBtn.classList.remove('bg-orange-500');
+                };
+                recognition.onend = () => {
+                    micBtn.classList.remove('listening', 'bg-red-500');
+                    micBtn.classList.add('bg-orange-500');
+                };
                 recognition.onresult = (event) => {
                     const transcript = event.results[0][0].transcript.trim();
                     if (!transcript) return;
@@ -335,9 +474,12 @@
                 recognition.onerror = (event) => showToast(`Speech recognition error: ${event.error}`, true);
             }
 
-            let synth = window.speechSynthesis;
+            const synth = window.speechSynthesis;
             let voices = [];
-            function populateVoiceList() { voices = synth.getVoices(); }
+
+            function populateVoiceList() {
+                voices = synth.getVoices();
+            }
             populateVoiceList();
             if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = populateVoiceList;
 
@@ -345,15 +487,19 @@
                 if (!voiceEnabled || !synth.speak || !text) return;
                 synth.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
-                const voice = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.split('-')[0]));
+                const voice = voices.find(v => v.lang === lang) || voices.find(v => v.lang && v.lang.startsWith(lang.split('-')[0]));
                 if (voice) utterance.voice = voice;
                 utterance.lang = lang;
                 synth.speak(utterance);
             }
-            
+
             micBtn.addEventListener('click', () => {
                 if (recognition && !micBtn.classList.contains('listening')) {
-                    try { recognition.start(); } catch (e) { showToast('Speech recognition already started.', true); }
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        showToast('Speech recognition already started.', true);
+                    }
                 }
             });
 
@@ -364,7 +510,8 @@
                 if (!voiceEnabled) synth.cancel();
             });
 
-            // --- UI RENDERING & HELPERS ---
+            attachBtn.addEventListener('click', () => fileInput.click());
+
             function showToast(message, isError = false) {
                 const toast = document.createElement('div');
                 toast.className = `toast transform translate-x-full opacity-0 p-4 rounded-lg shadow-lg text-white ${isError ? 'bg-red-500' : 'bg-slate-800'}`;
@@ -376,16 +523,165 @@
                     toast.addEventListener('transitionend', () => toast.remove());
                 }, 3000);
             }
+            function createContextId(prefix) {
+                contextCounter += 1;
+                return `${prefix}-${Date.now()}-${contextCounter}`;
+            }
+
+            function cloneData(data) {
+                try {
+                    return JSON.parse(JSON.stringify(data));
+                } catch (error) {
+                    return data;
+                }
+            }
+
+            function saveChatState() {
+                if (typeof localStorage === 'undefined') return;
+                try {
+                    localStorage.setItem(STORAGE_KEYS.chat, chatHistory.innerHTML);
+                    localStorage.setItem(STORAGE_KEYS.context, JSON.stringify({
+                        contexts: conversationMemory.contexts,
+                        contextOrder: conversationMemory.contextOrder,
+                        lastAppointments: conversationMemory.lastAppointments,
+                        lastSlots: conversationMemory.lastSlots,
+                        lastSlotsContextId: conversationMemory.lastSlotsContextId,
+                        lastInvoice: conversationMemory.lastInvoice,
+                        lastInvoiceContextId: conversationMemory.lastInvoiceContextId,
+                        lastSelectedAppointment: conversationMemory.lastSelectedAppointment,
+                        lastSelectedContextId: conversationMemory.lastSelectedContextId,
+                        lastCustomer: conversationMemory.lastCustomer,
+                        lastAnalytics: conversationMemory.lastAnalytics,
+                        lastAction: conversationMemory.lastAction
+                    }));
+                } catch (error) {
+                    console.warn('Unable to persist chat history', error);
+                }
+            }
+
+            function restoreChatState() {
+                if (typeof localStorage === 'undefined') return;
+                try {
+                    const savedHTML = localStorage.getItem(STORAGE_KEYS.chat);
+                    if (savedHTML) {
+                        chatHistory.innerHTML = savedHTML;
+                    }
+                    const savedContext = localStorage.getItem(STORAGE_KEYS.context);
+                    if (savedContext) {
+                        const parsed = JSON.parse(savedContext);
+                        if (parsed && typeof parsed === 'object') {
+                            conversationMemory.contexts = parsed.contexts || {};
+                            conversationMemory.contextOrder = parsed.contextOrder || [];
+                            conversationMemory.lastAppointments = parsed.lastAppointments || [];
+                            conversationMemory.lastSlots = parsed.lastSlots || [];
+                            conversationMemory.lastSlotsContextId = parsed.lastSlotsContextId || null;
+                            conversationMemory.lastInvoice = parsed.lastInvoice || null;
+                            conversationMemory.lastInvoiceContextId = parsed.lastInvoiceContextId || null;
+                            conversationMemory.lastSelectedAppointment = parsed.lastSelectedAppointment || null;
+                            conversationMemory.lastSelectedContextId = parsed.lastSelectedContextId || null;
+                            conversationMemory.lastCustomer = parsed.lastCustomer || '';
+                            conversationMemory.lastAnalytics = parsed.lastAnalytics || null;
+                            conversationMemory.lastAction = parsed.lastAction || null;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Unable to restore chat history', error);
+                }
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+            }
+
+            window.addEventListener('beforeunload', saveChatState);
+
+            function getContextById(id) {
+                if (!id) return null;
+                return conversationMemory.contexts[id] || null;
+            }
+
+            function getLatestContextByType(type) {
+                for (let i = conversationMemory.contextOrder.length - 1; i >= 0; i -= 1) {
+                    const contextId = conversationMemory.contextOrder[i];
+                    const context = conversationMemory.contexts[contextId];
+                    if (context && context.type === type) {
+                        return { id: contextId, data: context.data };
+                    }
+                }
+                return null;
+            }
+
+            function updateLastCustomerFromAppointment(record) {
+                if (!record) return;
+                const candidate = record.customer || record.name || record.contactName;
+                if (candidate && typeof candidate === 'string') {
+                    conversationMemory.lastCustomer = candidate;
+                }
+            }
+
+            function registerContext(context) {
+                if (!context || !context.id) return;
+                const cloned = cloneData(context.data);
+                conversationMemory.contexts[context.id] = { type: context.type, data: cloned };
+                conversationMemory.contextOrder = conversationMemory.contextOrder.filter(existing => existing !== context.id);
+                conversationMemory.contextOrder.push(context.id);
+
+                if (context.type === 'appointments') {
+                    conversationMemory.lastAppointments = Array.isArray(cloned) ? cloned : [];
+                    const last = conversationMemory.lastAppointments[conversationMemory.lastAppointments.length - 1];
+                    if (last) updateLastCustomerFromAppointment(last);
+                } else if (context.type === 'slots') {
+                    conversationMemory.lastSlots = Array.isArray(cloned) ? cloned : [];
+                    conversationMemory.lastSlotsContextId = context.id;
+                } else if (context.type === 'invoice') {
+                    conversationMemory.lastInvoice = cloned;
+                    conversationMemory.lastInvoiceContextId = context.id;
+                } else if (context.type === 'analytics') {
+                    conversationMemory.lastAnalytics = cloned;
+                }
+
+                saveChatState();
+            }
+
+            function bootstrapCharts(root = document) {
+                if (typeof Chart === 'undefined') return;
+                const canvases = root.querySelectorAll('canvas[data-chart-config]');
+                canvases.forEach(canvas => {
+                    if (canvas.dataset.chartInitialized === 'true') return;
+                    try {
+                        const config = JSON.parse(canvas.dataset.chartConfig);
+                        const chart = new Chart(canvas.getContext('2d'), config);
+                        const key = canvas.id || `chart-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                        activeCharts[key] = chart;
+                        canvas.dataset.chartInitialized = 'true';
+                    } catch (error) {
+                        console.error('Failed to render chart', error);
+                    }
+                });
+            }
 
             const render = {
-                addMessageToChat: (content, isUser = false) => {
-                    const id = `msg-${Date.now()}`;
+                addMessageToChat: (content, isUser = false, options = {}) => {
+                    const id = `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
                     const messageWrapper = document.createElement('div');
-                    messageWrapper.className = `flex ${isUser ? 'justify-end' : ''}`;
-                    const messageClass = isUser ? 'bg-orange-600 text-white p-3' : 'bg-transparent';
-                    messageWrapper.innerHTML = `<div id="${id}" class="rounded-lg max-w-md ${messageClass}">${content}</div>`;
+                    messageWrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'} w-full`;
+                    const message = document.createElement('div');
+                    message.id = id;
+                    message.dataset.rich = options.isRich ? 'true' : 'false';
+                    message.dataset.fullWidth = !isUser && options.fullWidth ? 'true' : 'false';
+                    message.classList.add('rounded-lg');
+                    if (!isUser && options.fullWidth) {
+                        message.classList.add('w-full', 'max-w-3xl');
+                    } else {
+                        message.classList.add('max-w-md');
+                    }
+                    if (isUser) {
+                        message.classList.add('bg-orange-600', 'text-white', 'p-3', 'shadow-sm');
+                    } else if (!options.isRich) {
+                        message.classList.add('bg-slate-200', 'text-slate-800', 'p-3');
+                    }
+                    message.innerHTML = content;
+                    messageWrapper.appendChild(message);
                     chatHistory.appendChild(messageWrapper);
                     chatHistory.scrollTop = chatHistory.scrollHeight;
+                    saveChatState();
                     return id;
                 },
                 removeMessage: (id) => {
@@ -394,28 +690,30 @@
                         const wrapper = msg.parentElement;
                         if (wrapper) wrapper.remove();
                         else msg.remove();
+                        saveChatState();
                     }
                 },
                 updateMessage: (id, newContent, isRich = false) => {
                     const msg = document.getElementById(id);
-                    if(msg) {
+                    if (msg) {
                         msg.innerHTML = newContent;
-                        if (!isRich) msg.classList.add('bg-slate-200', 'text-slate-800', 'p-3');
-                         else msg.classList.remove('bg-slate-200', 'text-slate-800', 'p-3');
+                        msg.dataset.rich = isRich ? 'true' : 'false';
+                        if (isRich) {
+                            msg.classList.remove('bg-slate-200', 'text-slate-800', 'p-3');
+                            if (msg.dataset.fullWidth === 'true') {
+                                msg.classList.add('w-full', 'max-w-3xl');
+                                msg.classList.remove('max-w-md');
+                            }
+                        } else {
+                            msg.classList.add('bg-slate-200', 'text-slate-800', 'p-3');
+                            if (msg.dataset.fullWidth === 'true') {
+                                msg.classList.add('w-full', 'max-w-3xl');
+                                msg.classList.remove('max-w-md');
+                            }
+                        }
+                        saveChatState();
                     }
-                },
-                table: (data) => {
-                    const headers = data.headers.map(h => `<th class="px-4 py-2 text-left text-sm font-semibold text-slate-600 bg-slate-50">${h}</th>`).join('');
-                    const rows = data.rows.map(row => `<tr>${row.map(cell => `<td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${cell}</td>`).join('')}</tr>`).join('');
-                    return `<div class="chat-response-container"><h4>${data.title}</h4><div class="overflow-x-auto"><table class="min-w-full"><thead><tr>${headers}</tr></thead><tbody class="divide-y divide-slate-200">${rows}</tbody></table></div></div>`;
-                },
-                cards: (data) => {
-                    const cards = data.items.map(item => `<div class="border rounded-lg p-3 bg-slate-50 text-center hover:shadow-md transition cursor-pointer"><h5 class="font-bold text-orange-600 text-lg">${item.title}</h5><p class="text-sm text-slate-500">${item.details}</p></div>`).join('');
-                    return `<div class="chat-response-container"><h4>${data.title}</h4><div class="grid grid-cols-2 sm:grid-cols-3 gap-3">${cards}</div></div>`;
-                },
-                invoice: (data) => {
-                    const items = data.items.map(item => `<div class="flex justify-between text-slate-700"><span>${item.description}</span><span>$${item.amount}</span></div>`).join('');
-                    return `<div class="chat-response-container"><h4>${data.title}</h4><p class="text-sm text-slate-500 mb-4">For: ${data.customer}</p><div class="space-y-2 border-t border-slate-200 pt-3">${items}</div><div class="space-y-1 border-t border-slate-200 mt-3 pt-3 text-sm"><div class="flex justify-between text-slate-500"><span>Subtotal</span><span>$${data.subtotal}</span></div><div class="flex justify-between text-slate-500"><span>Tax (7%)</span><span>$${data.tax}</span></div><div class="flex justify-between font-bold text-slate-800 text-base"><span>Total</span><span>$${data.total}</span></div></div></div>`;
+                    return msg;
                 },
                 tools: () => {
                     const groupedTools = tools.reduce((acc, tool) => {
@@ -424,33 +722,55 @@
                         (acc[schema.category] = acc[schema.category] || []).push(tool);
                         return acc;
                     }, {});
-                    toolCatalog.innerHTML = Object.entries(groupedTools).map(([category, toolList]) => `<div><h3 class="font-bold text-slate-500 text-sm mb-2">${category}</h3><div class="space-y-2">${toolList.map(tool => { const schema = toolSchemas[tool.name]; return `<div data-example="${tool.name}" class="tool-item border p-3 rounded-md hover:bg-slate-50 cursor-pointer"><h4 class="font-bold text-slate-800"><i class="fa-solid ${schema.icon} mr-2 text-orange-500 w-5"></i>${schema.title}</h4></div>`; }).join('')}</div></div>`).join('');
-                    toolCatalog.querySelectorAll('.tool-item').forEach(item => item.addEventListener('click', () => { chatInput.value = item.dataset.example; chatInput.focus(); }));
+                    toolCatalog.innerHTML = Object.entries(groupedTools).map(([category, toolList]) => `
+                        <div>
+                            <h3 class="font-bold text-slate-500 text-sm mb-2">${category}</h3>
+                            <div class="space-y-2">
+                                ${toolList.map(tool => {
+                                    const schema = toolSchemas[tool.name];
+                                    return `<div data-example="${tool.name}" class="tool-item border p-3 rounded-md hover:bg-slate-50 cursor-pointer">
+                                        <h4 class="font-bold text-slate-800"><i class="fa-solid ${schema.icon} mr-2 text-orange-500 w-5"></i>${schema.title}</h4>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                    toolCatalog.querySelectorAll('.tool-item').forEach(item => item.addEventListener('click', () => {
+                        chatInput.value = item.dataset.example;
+                        chatInput.focus();
+                    }));
                 },
                 quickActions: () => {
                     if (!quickActionsList) return;
-                    quickActionsList.innerHTML = quickActions.map((action, index) => `
-                        <button
-                            type="button"
-                            data-prompt="${action.prompt.replace(/"/g, '&quot;')}"
-                            class="w-full text-left px-4 py-3 rounded-md border border-slate-200 hover:border-orange-400 hover:bg-orange-50 transition flex items-center justify-between"
-                        >
-                            <span class="font-medium text-slate-700">${action.label}</span>
-                            <span class="text-xs text-slate-400">QA-${index + 1}</span>
-                        </button>
-                    `).join('');
-                    quickActionsList.querySelectorAll('button[data-prompt]').forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            const prompt = btn.dataset.prompt;
-                            chatInput.value = prompt;
-                            chatInput.focus();
-                            chatForm.dispatchEvent(new Event('submit', { bubbles: true }));
-                        });
-                    });
+                    quickActionsList.innerHTML = `
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            ${quickActions.map((action, index) => `
+                                <button type="button" data-prompt="${action.prompt.replace(/"/g, '&quot;')}" class="quick-action-card w-full border border-slate-200 rounded-xl bg-white px-4 py-4 text-left shadow-sm hover:border-orange-300">
+                                    <div class="flex items-center gap-3">
+                                        <div class="h-12 w-12 rounded-full flex items-center justify-center ${action.accent}">
+                                            <i class="fa-solid ${action.icon} text-lg"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="font-semibold text-slate-700">${action.label}</p>
+                                            <p class="text-xs text-slate-500 mt-1">QA-${index + 1}</p>
+                                        </div>
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
+                                    </div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
                 }
             };
-            
-            // --- MAIN CHAT LOGIC ---
+            quickActionsList.addEventListener('click', (event) => {
+                const card = event.target.closest('.quick-action-card[data-prompt]');
+                if (!card) return;
+                const prompt = card.dataset.prompt;
+                chatInput.value = prompt;
+                chatInput.focus();
+                chatForm.dispatchEvent(new Event('submit', { bubbles: true }));
+            });
+
             function formatTextContent(text) {
                 if (!text) return '';
                 const escaped = text
@@ -493,13 +813,11 @@
 
             function getLeadName(record) {
                 if (!record || typeof record !== 'object') return '-';
-
                 const nameParts = [];
                 if (record.firstName) nameParts.push(String(record.firstName).trim());
                 if (record.lastName) nameParts.push(String(record.lastName).trim());
                 const combined = nameParts.filter(Boolean).join(' ').trim();
                 if (combined) return combined;
-
                 const candidateKeys = ['name', 'customerName', 'leadName', 'customer', 'contactName', 'fullName'];
                 for (const key of candidateKeys) {
                     const value = record[key];
@@ -508,7 +826,6 @@
                         if (text) return text;
                     }
                 }
-
                 return '-';
             }
 
@@ -516,12 +833,10 @@
                 if (!value) {
                     return { displayDate: '', displayTime: '', iso: value };
                 }
-
                 const date = new Date(value);
                 if (Number.isNaN(date.getTime())) {
                     return { displayDate: value, displayTime: '', iso: value };
                 }
-
                 return {
                     displayDate: date.toLocaleDateString(undefined, {
                         weekday: 'short',
@@ -534,73 +849,165 @@
                 };
             }
 
-            function buildToolDisplay(tool, dataPoints) {
-                if (!tool || !Array.isArray(dataPoints) || !dataPoints.length) return null;
+            function formatMetricValue(point) {
+                if (!point) return '-';
+                const { value, currency, suffix, prefix } = point;
+                if (value === null || value === undefined) return '-';
+                if (currency) return formatCurrency(value, currency);
+                if (prefix) return `${prefix}${value}`;
+                if (suffix) return `${value}${suffix}`;
+                if (typeof value === 'number' && Number.isFinite(value)) return value.toLocaleString();
+                return value;
+            }
+
+            function formatChange(change) {
+                if (change === null || change === undefined || change === '') return '';
+                const value = Number(change);
+                if (!Number.isFinite(value)) return change;
+                const arrow = value >= 0 ? '▲' : '▼';
+                const formatted = Math.abs(value) < 1 ? Math.abs(value).toFixed(1) : Math.abs(value).toFixed(0);
+                return `${arrow} ${formatted}%`;
+            }
+
+            function appointmentActionButtons(contextId, index) {
+                const actions = [
+                    { action: 'send-reminder', label: 'Send Reminder', icon: 'fa-bell' },
+                    { action: 'reschedule', label: 'Reschedule', icon: 'fa-calendar-pen' },
+                    { action: 'view-history', label: 'View Customer History', icon: 'fa-user-clock' }
+                ];
+                return `
+                    <div class="flex flex-wrap gap-2">
+                        ${actions.map(item => `
+                            <button type="button" class="appointment-action-btn inline-flex items-center gap-2 rounded-md bg-white border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:border-orange-300 hover:text-orange-600" data-appointment-action="${item.action}" data-context-id="${contextId || ''}" data-index="${index}">
+                                <i class="fa-solid ${item.icon}"></i>
+                                ${item.label}
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            function buildToolDisplay(response) {
+                if (!response) return null;
+                const dataPoints = Array.isArray(response.dataPoints)
+                    ? response.dataPoints
+                    : response.dataPoints
+                        ? [response.dataPoints]
+                        : [];
+                const normalizedTool = String(response.tool || '').toLowerCase();
 
                 const builders = {
                     invoice: (records) => {
                         const invoice = records[0] || {};
+                        const contextId = createContextId('invoice');
                         const currency = invoice.currency;
-                        const items = Array.isArray(invoice.items) ? invoice.items.map(item => {
-                            const quantity = item.quantity ?? 1;
-                            const unitPrice = item.unitPrice !== undefined ? formatCurrency(item.unitPrice, currency) : '-';
-                            const lineTotal = item.unitPrice !== undefined ? formatCurrency(quantity * item.unitPrice, currency) : '-';
-                            const taxRate = item.taxRate !== undefined ? `${Math.round(item.taxRate * 100)}%` : '-';
-                            return `
-                                <tr>
-                                    <td class="py-2 text-sm text-slate-600">${item.description || '-'}</td>
-                                    <td class="py-2 text-sm text-slate-600 text-center">${quantity}</td>
-                                    <td class="py-2 text-sm text-slate-600 text-right">${unitPrice}</td>
-                                    <td class="py-2 text-sm text-slate-600 text-right">${taxRate}</td>
-                                    <td class="py-2 text-sm text-slate-600 text-right">${lineTotal}</td>
-                                </tr>
-                            `;
-                        }).join('') : '';
+                        const items = Array.isArray(invoice.items) ? invoice.items.map(item => `
+                            <tr>
+                                <td class="py-2 text-sm text-slate-600">${item.description || '-'}</td>
+                                <td class="py-2 text-sm text-center text-slate-600">${item.quantity ?? 1}</td>
+                                <td class="py-2 text-sm text-right text-slate-600">${item.unitPrice !== undefined ? formatCurrency(item.unitPrice, currency) : '-'}</td>
+                                <td class="py-2 text-sm text-right text-slate-600">${item.taxRate !== undefined ? `${Math.round(item.taxRate * 100)}%` : '-'}</td>
+                                <td class="py-2 text-sm text-right text-slate-600">${item.unitPrice !== undefined ? formatCurrency((item.quantity ?? 1) * item.unitPrice, currency) : '-'}</td>
+                            </tr>
+                        `).join('') : '';
 
-                        return `
-                            <div class="chat-response-container space-y-4">
+                        const markup = `
+                            <div class="chat-response-container space-y-4" data-context-id="${contextId}" data-context-type="invoice">
                                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                     <div>
                                         <h4>Invoice ${invoice.invoiceId || ''}</h4>
                                         <p class="text-sm text-slate-500">Customer: ${invoice.customer || '-'}</p>
                                     </div>
                                     <div class="text-right">
-                                        <p class="text-sm uppercase text-slate-500">Total Due</p>
-                                        <p class="text-xl font-bold text-orange-600">${formatCurrency(invoice.total, currency)}</p>
+                                        <p class="text-xs uppercase text-slate-500">Total Due</p>
+                                        <p class="text-2xl font-bold text-orange-600">${formatCurrency(invoice.total, currency)}</p>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm text-slate-600">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-slate-600">
                                     <div><span class="block font-semibold text-slate-700">Status</span>${invoice.status || '-'}</div>
                                     <div><span class="block font-semibold text-slate-700">Created</span>${invoice.createdAt ? new Date(invoice.createdAt).toLocaleString() : '-'}</div>
                                     <div><span class="block font-semibold text-slate-700">Business ID</span>${invoice.businessId ?? '-'}</div>
                                     <div><span class="block font-semibold text-slate-700">Payment Link</span>${invoice.paymentLink ? `<a href="${invoice.paymentLink}" target="_blank" class="text-orange-600 underline break-all">Pay now</a>` : '-'}</div>
                                 </div>
                                 ${items ? `
-                                    <div>
-                                        <h5 class="font-semibold text-slate-700 mb-2">Items</h5>
-                                        <div class="overflow-x-auto">
-                                            <table class="min-w-full text-left">
-                                                <thead>
-                                                    <tr class="text-xs uppercase tracking-wide text-slate-500">
-                                                        <th class="pb-2">Description</th>
-                                                        <th class="pb-2 text-center">Qty</th>
-                                                        <th class="pb-2 text-right">Unit Price</th>
-                                                        <th class="pb-2 text-right">Tax</th>
-                                                        <th class="pb-2 text-right">Line Total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-slate-200">${items}</tbody>
-                                            </table>
-                                        </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full text-left">
+                                            <thead>
+                                                <tr class="text-xs uppercase tracking-wide text-slate-500">
+                                                    <th class="pb-2">Description</th>
+                                                    <th class="pb-2 text-center">Qty</th>
+                                                    <th class="pb-2 text-right">Unit Price</th>
+                                                    <th class="pb-2 text-right">Tax</th>
+                                                    <th class="pb-2 text-right">Line Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-200">${items}</tbody>
+                                        </table>
                                     </div>
                                 ` : ''}
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" class="invoice-action-btn inline-flex items-center gap-2 rounded-md bg-orange-50 border border-orange-200 px-3 py-2 text-sm font-medium text-orange-600 hover:bg-orange-100" data-invoice-action="send-whatsapp" data-context-id="${contextId}">
+                                        <i class="fa-solid fa-paper-plane"></i>
+                                        Send to Customer via WhatsApp
+                                    </button>
+                                    <button type="button" class="invoice-action-btn inline-flex items-center gap-2 rounded-md bg-slate-100 border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200" data-invoice-action="mark-paid" data-context-id="${contextId}">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        Mark as Paid
+                                    </button>
+                                </div>
                             </div>
                         `;
+
+                        return {
+                            markup,
+                            contexts: [{ id: contextId, type: 'invoice', data: invoice }],
+                            renderOptions: { isRich: true, fullWidth: true }
+                        };
                     },
                     appointment: (records) => {
+                        if (!records.length) return null;
+                        const allAvailable = records.every(record => String(record.status || '').toLowerCase() === 'available');
+                        if (allAvailable) {
+                            const contextId = createContextId('slots');
+                            const normalizedSlots = records.map(record => {
+                                const display = formatSlotDisplay(record.datetime || record.iso || record.slot || record);
+                                return {
+                                    iso: display.iso,
+                                    displayDate: display.displayDate,
+                                    displayTime: display.displayTime,
+                                    serviceId: record.serviceId,
+                                    businessId: record.businessId,
+                                    customer: record.customer || ''
+                                };
+                            });
+                            const cards = normalizedSlots.map((slot, index) => `
+                                <button type="button" class="available-slot-card border border-slate-200 rounded-lg p-3 text-left bg-slate-50 hover:bg-orange-50 hover:border-orange-200 transition flex flex-col gap-1" data-context-id="${contextId}" data-index="${index}" data-slot="${escapeAttribute(slot.iso)}" data-customer="${escapeAttribute(slot.customer)}">
+                                    <span class="text-sm font-semibold text-slate-700">${slot.displayTime || slot.displayDate || 'Slot'}</span>
+                                    ${slot.displayDate ? `<span class="text-xs text-slate-500">${slot.displayDate}</span>` : ''}
+                                </button>
+                            `).join('');
+                            const markup = `
+                                <div class="chat-response-container space-y-3" data-context-id="${contextId}" data-context-type="slots">
+                                    <div class="flex items-center justify-between">
+                                        <h4>Available Slots</h4>
+                                        <span class="text-xs px-2 py-1 bg-slate-100 text-slate-500 rounded-full">${normalizedSlots.length} options</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        ${cards}
+                                    </div>
+                                    <p class="text-xs text-slate-500">Click a slot to populate a booking command automatically.</p>
+                                </div>
+                            `;
+                            return {
+                                markup,
+                                contexts: [{ id: contextId, type: 'slots', data: normalizedSlots }],
+                                renderOptions: { isRich: true, fullWidth: true }
+                            };
+                        }
+
                         if (records.length > 1) {
-                            const rows = records.map(record => `
-                                <tr>
+                            const contextId = createContextId('appointments');
+                            const rows = records.map((record, index) => `
+                                <tr class="appointment-row" data-context-id="${contextId}" data-index="${index}">
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.appointmentId || record.queueNumber || '-'}</td>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.customer || record.name || '-'}</td>
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.serviceId ?? '-'}</td>
@@ -609,9 +1016,8 @@
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.queueNumber || '-'}</td>
                                 </tr>
                             `).join('');
-
-                            return `
-                                <div class="chat-response-container">
+                            const markup = `
+                                <div class="chat-response-container space-y-4 appointments-wrapper" data-context-id="${contextId}" data-context-type="appointments">
                                     <h4>Appointments</h4>
                                     <div class="overflow-x-auto">
                                         <table class="min-w-full">
@@ -628,60 +1034,108 @@
                                             <tbody class="divide-y divide-slate-200">${rows}</tbody>
                                         </table>
                                     </div>
+                                    <div class="appointment-action-panel border border-dashed border-orange-200 rounded-lg p-3 bg-orange-50 text-sm text-orange-700" data-action-panel="${contextId}">
+                                        Tap a row to reveal quick actions.
+                                    </div>
                                 </div>
                             `;
+                            return {
+                                markup,
+                                contexts: [{ id: contextId, type: 'appointments', data: records }],
+                                renderOptions: { isRich: true, fullWidth: true }
+                            };
                         }
 
                         const appointment = records[0];
-                        const suggestedSlots = Array.isArray(appointment.suggestedSlots)
-                            ? appointment.suggestedSlots.filter(Boolean)
-                            : [];
-                        const suggestedSlotsMarkup = suggestedSlots.length
-                            ? `
-                                <div class="space-y-2">
-                                    <h5 class="font-semibold text-slate-700">Available times</h5>
-                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                        ${suggestedSlots.map(slot => {
-                                            const display = formatSlotDisplay(slot);
-                                            const hasBoth = display.displayDate && display.displayTime;
-                                            const primaryLabel = display.displayTime || display.displayDate || slot;
-                                            const secondaryLabel = hasBoth ? display.displayDate : '';
-                                            return `
-                                                <button type="button" class="suggested-slot-card border border-slate-200 rounded-lg p-3 text-left bg-slate-50 hover:bg-orange-50 hover:border-orange-200 transition flex flex-col gap-1" data-slot="${escapeAttribute(slot)}" data-customer="${escapeAttribute(appointment.customer || appointment.name || '')}" data-business="${escapeAttribute(appointment.businessId ?? '')}" data-service="${escapeAttribute(appointment.serviceId ?? '')}">
-                                                    <span class="text-sm font-semibold text-slate-700">${primaryLabel}</span>
-                                                    ${secondaryLabel ? `<span class="text-xs text-slate-500">${secondaryLabel}</span>` : ''}
-                                                </button>
-                                            `;
-                                        }).join('')}
-                                    </div>
-                                    <p class="text-xs text-slate-500">Select a time to update your request.</p>
-                                </div>
-                            `
-                            : '';
-
+                        const contextId = createContextId('appointments');
+                        const detailRows = [
+                            { label: 'Customer', value: appointment.customer || appointment.name || '-' },
+                            { label: 'Status', value: appointment.status || '-' },
+                            { label: 'Date & Time', value: formatDateTime(appointment.datetime) },
+                            { label: 'Queue Number', value: appointment.queueNumber || '-' },
+                            { label: 'Service ID', value: appointment.serviceId ?? '-' },
+                            { label: 'Business ID', value: appointment.businessId ?? '-' }
+                        ];
                         const statusMessage = appointment.message
                             ? `<p class="text-sm text-slate-600 bg-orange-50 border border-orange-200 p-3 rounded-md">${appointment.message}</p>`
                             : '';
 
-                        return `
-                            <div class="chat-response-container space-y-4">
+                        const suggestedSlots = Array.isArray(appointment.suggestedSlots) ? appointment.suggestedSlots.filter(Boolean) : [];
+                        let slotContextId = null;
+                        let suggestedSlotsMarkup = '';
+                        if (suggestedSlots.length) {
+                            slotContextId = createContextId('slots');
+                            const normalizedSlots = suggestedSlots.map(slot => {
+                                const display = formatSlotDisplay(slot);
+                                return {
+                                    iso: display.iso,
+                                    displayDate: display.displayDate,
+                                    displayTime: display.displayTime,
+                                    serviceId: appointment.serviceId,
+                                    businessId: appointment.businessId,
+                                    customer: appointment.customer || appointment.name || ''
+                                };
+                            });
+                            suggestedSlotsMarkup = `
+                                <div class="space-y-2" data-context-id="${slotContextId}" data-context-type="slots">
+                                    <h5 class="font-semibold text-slate-700">Available times</h5>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        ${normalizedSlots.map((slot, index) => `
+                                            <button type="button" class="suggested-slot-card border border-slate-200 rounded-lg p-3 text-left bg-slate-50 hover:bg-orange-50 hover:border-orange-200 transition flex flex-col gap-1" data-slot="${escapeAttribute(slot.iso)}" data-customer="${escapeAttribute(slot.customer)}" data-context-id="${slotContextId}" data-index="${index}">
+                                                <span class="text-sm font-semibold text-slate-700">${slot.displayTime || slot.displayDate || 'Slot'}</span>
+                                                ${slot.displayDate ? `<span class="text-xs text-slate-500">${slot.displayDate}</span>` : ''}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                    <p class="text-xs text-slate-500">Select a time to update your request.</p>
+                                </div>
+                            `;
+                            return {
+                                markup: `
+                                    <div class="chat-response-container space-y-4" data-context-id="${contextId}" data-context-type="appointments">
+                                        <h4>Appointment ${appointment.appointmentId || appointment.queueNumber || ''}</h4>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                                            ${detailRows.map(item => `<div><span class="block font-semibold text-slate-700">${item.label}</span>${item.value}</div>`).join('')}
+                                        </div>
+                                        ${statusMessage}
+                                        ${suggestedSlotsMarkup}
+                                        <div class="space-y-2">
+                                            <p class="text-sm font-semibold text-slate-700">Quick actions</p>
+                                            ${appointmentActionButtons(contextId, 0)}
+                                            <p class="text-xs text-slate-500">Use these shortcuts or continue the conversation.</p>
+                                        </div>
+                                    </div>
+                                `,
+                                contexts: [
+                                    { id: contextId, type: 'appointments', data: [appointment] },
+                                    { id: slotContextId, type: 'slots', data: normalizedSlots }
+                                ],
+                                renderOptions: { isRich: true, fullWidth: true }
+                            };
+                        }
+
+                        const markup = `
+                            <div class="chat-response-container space-y-4" data-context-id="${contextId}" data-context-type="appointments">
                                 <h4>Appointment ${appointment.appointmentId || appointment.queueNumber || ''}</h4>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
-                                    <div><span class="block font-semibold text-slate-700">Customer</span>${appointment.customer || appointment.name || '-'}</div>
-                                    <div><span class="block font-semibold text-slate-700">Status</span>${appointment.status || '-'}</div>
-                                    <div><span class="block font-semibold text-slate-700">Date & Time</span>${formatDateTime(appointment.datetime)}</div>
-                                    <div><span class="block font-semibold text-slate-700">Queue Number</span>${appointment.queueNumber || '-'}</div>
-                                    <div><span class="block font-semibold text-slate-700">Service ID</span>${appointment.serviceId ?? '-'}</div>
-                                    <div><span class="block font-semibold text-slate-700">Business ID</span>${appointment.businessId ?? '-'}</div>
+                                    ${detailRows.map(item => `<div><span class="block font-semibold text-slate-700">${item.label}</span>${item.value}</div>`).join('')}
                                 </div>
                                 ${statusMessage}
-                                ${suggestedSlotsMarkup}
+                                <div class="space-y-2">
+                                    <p class="text-sm font-semibold text-slate-700">Quick actions</p>
+                                    ${appointmentActionButtons(contextId, 0)}
+                                    <p class="text-xs text-slate-500">Use these shortcuts or continue the conversation.</p>
+                                </div>
                             </div>
                         `;
+                        return {
+                            markup,
+                            contexts: [{ id: contextId, type: 'appointments', data: [appointment] }],
+                            renderOptions: { isRich: true, fullWidth: true }
+                        };
                     },
                     lead: (records) => {
                         if (!records.length) return null;
-
                         if (records.length > 1) {
                             const rows = records.map(record => `
                                 <tr>
@@ -693,34 +1147,35 @@
                                     <td class="border-t border-slate-200 px-4 py-2 text-sm text-slate-700">${record.count ?? formatDateTime(record.createdAt)}</td>
                                 </tr>
                             `).join('');
-
-                            return `
-                                <div class="chat-response-container">
-                                    <h4>Leads</h4>
-                                    <div class="overflow-x-auto">
-                                        <table class="min-w-full">
-                                            <thead>
-                                                <tr>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Lead</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Name</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Phone</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Email</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Source</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Count / Created</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-slate-200">${rows}</tbody>
-                                        </table>
+                            return {
+                                markup: `
+                                    <div class="chat-response-container">
+                                        <h4>Leads</h4>
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full">
+                                                <thead>
+                                                    <tr>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Lead</th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Name</th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Phone</th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Email</th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Source</th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500 bg-slate-50">Count / Created</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-200">${rows}</tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                </div>
-                            `;
+                                `,
+                                renderOptions: { isRich: true, fullWidth: true }
+                            };
                         }
 
                         const lead = records[0];
                         const leadName = getLeadName(lead);
                         const leadTitle = (lead.leadId || (leadName !== '-' ? leadName : '') || '').toString().trim();
                         const leadHeading = leadTitle ? `Lead ${leadTitle}` : 'Lead';
-
                         const detailRows = [
                             { label: 'Lead ID', value: lead.leadId || lead.id || '-' },
                             { label: 'Name', value: leadName },
@@ -732,69 +1187,346 @@
                         ];
                         const visibleDetails = detailRows.filter(item => item.value !== '-' && item.value !== undefined && item.value !== null && item.value !== '');
                         const displayDetails = visibleDetails.length ? visibleDetails : detailRows;
-
-                        return `
-                            <div class="chat-response-container space-y-4">
-                                <h4>${leadHeading}</h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
-                                    ${displayDetails.map(item => `<div><span class="block font-semibold text-slate-700">${item.label}</span>${item.value || '-'}</div>`).join('')}
+                        return {
+                            markup: `
+                                <div class="chat-response-container space-y-4">
+                                    <h4>${leadHeading}</h4>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                                        ${displayDetails.map(item => `<div><span class="block font-semibold text-slate-700">${item.label}</span>${item.value || '-'}</div>`).join('')}
+                                    </div>
                                 </div>
+                            `,
+                            renderOptions: { isRich: true, fullWidth: true }
+                        };
+                    },
+                    analytics: (records) => {
+                        const contextId = createContextId('analytics');
+                        const insights = Array.isArray(response.insights) ? response.insights : [];
+                        const chartConfig = response.chart || null;
+                        const chartMeta = response.chartMeta || {};
+                        const cards = records.map(point => {
+                            const changeLabel = formatChange(point.change);
+                            const isPositive = typeof point.change === 'number' ? point.change >= 0 : String(point.change || '').startsWith('+');
+                            return `
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1">
+                                    <p class="text-xs uppercase tracking-wide text-slate-500">${point.metric || 'Metric'}</p>
+                                    <p class="text-2xl font-bold text-slate-800">${formatMetricValue(point)}</p>
+                                    ${changeLabel ? `<p class="text-xs font-medium ${isPositive ? 'text-emerald-600' : 'text-rose-600'}">${changeLabel} vs last period</p>` : ''}
+                                </div>
+                            `;
+                        }).join('');
+
+                        const chartId = chartConfig ? `${contextId}-chart` : null;
+                        const chartMarkup = chartConfig ? `
+                            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                <canvas id="${chartId}" data-chart-config="${escapeAttribute(JSON.stringify(chartConfig))}"></canvas>
                             </div>
-                        `;
+                        ` : '';
+
+                        const insightMarkup = insights.length
+                            ? `<div class="space-y-2">
+                                    <h5 class="text-sm font-semibold text-slate-700">Insights</h5>
+                                    <ul class="list-disc pl-5 space-y-1 text-sm text-slate-600">
+                                        ${insights.map(item => `<li>${item}</li>`).join('')}
+                                    </ul>
+                                </div>`
+                            : '';
+
+                        return {
+                            markup: `
+                                <div class="chat-response-container space-y-4" data-context-id="${contextId}" data-context-type="analytics">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <h4>Business Intelligence</h4>
+                                        ${chartMeta.range ? `<span class="text-xs px-2 py-1 bg-slate-100 text-slate-500 rounded-full">${chartMeta.range}</span>` : ''}
+                                    </div>
+                                    ${cards ? `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${cards}</div>` : ''}
+                                    ${chartMarkup}
+                                    ${insightMarkup}
+                                </div>
+                            `,
+                            contexts: [{ id: contextId, type: 'analytics', data: { metrics: records, insights, chart: chartConfig } }],
+                            charts: chartConfig ? [{ id: chartId, config: chartConfig }] : [],
+                            renderOptions: { isRich: true, fullWidth: true }
+                        };
                     }
                 };
-
-                const normalizedTool = String(tool || '').toLowerCase();
 
                 if (builders[normalizedTool]) {
                     return builders[normalizedTool](dataPoints);
                 }
-
                 const matchedKey = Object.keys(builders).find(key => normalizedTool.includes(key));
                 if (matchedKey) {
                     return builders[matchedKey](dataPoints);
                 }
-
-                return `<div class="chat-response-container"><h4>${tool} Details</h4><pre class="text-sm text-slate-600 whitespace-pre-wrap">${JSON.stringify(dataPoints, null, 2)}</pre></div>`;
+                if (response.chart) {
+                    return builders.analytics(dataPoints);
+                }
+                if (!dataPoints.length) return null;
+                return {
+                    markup: `<div class="chat-response-container" data-context-type="generic"><h4>${response.tool || 'Details'}</h4><pre class="text-sm text-slate-600 whitespace-pre-wrap">${escapeAttribute(JSON.stringify(dataPoints, null, 2))}</pre></div>`,
+                    renderOptions: { isRich: true, fullWidth: true }
+                };
+            }
+            function handleSlotCardSelection(card) {
+                const slot = card.dataset.slot || '';
+                const contextId = card.dataset.contextId || card.closest('[data-context-id]')?.dataset.contextId;
+                const index = Number(card.dataset.index);
+                const context = getContextById(contextId);
+                let record = null;
+                if (context && Array.isArray(context.data)) {
+                    record = context.data[index];
+                }
+                const display = formatSlotDisplay(slot || (record ? record.iso : ''));
+                const readableParts = [display.displayTime, display.displayDate].filter(Boolean);
+                const readable = readableParts.length ? readableParts.join(' on ') : slot;
+                const fallbackCustomer = conversationMemory.lastCustomer || 'the last customer';
+                const customer = (card.dataset.customer && card.dataset.customer.trim()) || fallbackCustomer;
+                let prompt = `Book an appointment for ${customer}`;
+                if (readable) {
+                    prompt += ` at ${readable}`;
+                } else if (slot) {
+                    prompt += ` at ${slot}`;
+                }
+                if (record && record.serviceId) {
+                    prompt += ` for service ${record.serviceId}`;
+                }
+                chatInput.value = prompt.trim();
+                chatInput.focus();
+                showToast(readable ? `Ready to book ${readable}` : 'Added slot to your command.');
+                saveChatState();
             }
 
-            chatHistory.addEventListener('click', (event) => {
-                const card = event.target.closest('.suggested-slot-card');
-                if (!card) return;
+            function handleAppointmentRowClick(row) {
+                const contextId = row.dataset.contextId || row.closest('[data-context-id]')?.dataset.contextId;
+                const index = Number(row.dataset.index);
+                const context = getContextById(contextId);
+                if (!context || !Array.isArray(context.data)) return;
+                const appointment = context.data[index];
+                if (!appointment) return;
 
-                const slot = card.dataset.slot || '';
-                const customer = (card.dataset.customer || '').trim();
-                const business = (card.dataset.business || '').trim();
-                const service = (card.dataset.service || '').trim();
-                const display = formatSlotDisplay(slot);
-                const readable = [display.displayDate, display.displayTime].filter(Boolean).join(' at ');
+                const tbody = row.parentElement;
+                if (tbody) {
+                    tbody.querySelectorAll('.appointment-row').forEach(r => r.classList.remove('bg-orange-50', 'ring-1', 'ring-orange-300'));
+                }
+                row.classList.add('bg-orange-50', 'ring-1', 'ring-orange-300');
 
-                const parts = ['Please book the appointment'];
-                if (customer) parts.push(`for ${customer}`);
-                if (business) parts.push(`at business ${business}`);
-                if (service) parts.push(`for service ${service}`);
+                conversationMemory.lastSelectedAppointment = cloneData(appointment);
+                conversationMemory.lastSelectedContextId = contextId;
+                updateLastCustomerFromAppointment(appointment);
 
-                let prompt = parts.join(' ');
-                if (readable) {
-                    prompt += ` on ${readable}`;
-                } else if (slot) {
-                    prompt += ` on ${slot}`;
+                const wrapper = row.closest('.appointments-wrapper');
+                const panel = wrapper ? wrapper.querySelector(`[data-action-panel="${contextId}"]`) : null;
+                if (panel) {
+                    panel.innerHTML = `
+                        <div class="space-y-2">
+                            <p class="text-sm font-semibold text-slate-700">Quick actions for ${appointment.customer || appointment.name || 'this customer'}:</p>
+                            ${appointmentActionButtons(contextId, index)}
+                            <p class="text-xs text-slate-500">Use these shortcuts or continue the conversation.</p>
+                        </div>
+                    `;
+                }
+                saveChatState();
+            }
+
+            function handleAppointmentAction(button) {
+                const action = button.dataset.appointmentAction;
+                const contextId = button.dataset.contextId || conversationMemory.lastSelectedContextId;
+                let index = Number(button.dataset.index);
+                if (Number.isNaN(index) || index < 0) index = conversationMemory.lastAppointments.length - 1;
+                const context = getContextById(contextId);
+                let appointment = context && Array.isArray(context.data) ? context.data[index] : null;
+                if (!appointment) {
+                    appointment = conversationMemory.lastSelectedAppointment || conversationMemory.lastAppointments[index] || conversationMemory.lastAppointments[conversationMemory.lastAppointments.length - 1];
+                }
+                if (!appointment) return;
+
+                updateLastCustomerFromAppointment(appointment);
+                const appointmentId = appointment.appointmentId || appointment.queueNumber || `appointment ${index + 1}`;
+                const when = formatDateTime(appointment.datetime);
+                const customerName = appointment.customer || appointment.name || 'the customer';
+
+                let prompt;
+                switch (action) {
+                    case 'send-reminder':
+                        prompt = `Send a reminder to ${customerName} about appointment ${appointmentId} scheduled for ${when}.`;
+                        showToast(`Prepared reminder for ${customerName}.`);
+                        conversationMemory.lastAction = { type: 'appointmentReminder', appointmentId, timestamp: Date.now() };
+                        break;
+                    case 'reschedule':
+                        prompt = `Reschedule appointment ${appointmentId} for ${customerName} to `;
+                        showToast('Add the new time to the message to reschedule.');
+                        conversationMemory.lastAction = { type: 'appointmentReschedule', appointmentId, timestamp: Date.now() };
+                        break;
+                    case 'view-history':
+                        prompt = `Show the customer history for ${customerName}.`;
+                        showToast(`Ready to view ${customerName}'s history.`);
+                        conversationMemory.lastAction = { type: 'customerHistory', customerName, appointmentId, timestamp: Date.now() };
+                        break;
+                    case 'notify-cancel':
+                        prompt = `Send a WhatsApp notification to ${customerName} about the cancellation of appointment ${appointmentId} scheduled for ${when}.`;
+                        showToast('Notification command prepared.');
+                        conversationMemory.lastAction = { type: 'appointmentNotifyCancel', appointmentId, timestamp: Date.now() };
+                        break;
+                    case 'undo':
+                        prompt = `Undo the cancellation for appointment ${appointmentId}.`;
+                        showToast('Prepared undo request.');
+                        conversationMemory.lastAction = { type: 'appointmentUndo', appointmentId, timestamp: Date.now() };
+                        break;
+                    default:
+                        return;
                 }
 
-                if (slot && readable) {
-                    prompt += ` (${slot})`;
-                }
+                chatInput.value = prompt.trim();
+                chatInput.focus();
+                saveChatState();
+            }
 
-                prompt = prompt.trim();
-                if (!prompt.endsWith('.')) {
-                    prompt += '.';
+            function handleInvoiceAction(button) {
+                const action = button.dataset.invoiceAction;
+                const contextId = button.dataset.contextId || conversationMemory.lastInvoiceContextId;
+                const context = getContextById(contextId);
+                const invoice = context ? context.data : conversationMemory.lastInvoice;
+                if (!invoice) return;
+                const invoiceId = invoice.invoiceId || invoice.id || 'the invoice';
+                const customerName = invoice.customer || 'the customer';
+                let prompt;
+                if (action === 'send-whatsapp') {
+                    prompt = `Send invoice ${invoiceId} to ${customerName} via WhatsApp.`;
+                    showToast(`Ready to send invoice ${invoiceId}.`);
+                    conversationMemory.lastAction = { type: 'invoiceSend', invoiceId, timestamp: Date.now() };
+                } else if (action === 'mark-paid') {
+                    prompt = `Mark invoice ${invoiceId} as paid.`;
+                    showToast(`Marked ${invoiceId} for payment update.`);
+                    conversationMemory.lastAction = { type: 'invoicePaid', invoiceId, timestamp: Date.now() };
+                } else {
+                    return;
                 }
-
                 chatInput.value = prompt;
                 chatInput.focus();
-                showToast(readable ? `Updated request for ${readable}` : 'Updated request with selected time.');
-            });
+                saveChatState();
+            }
+            chatHistory.addEventListener('click', (event) => {
+                const slotCard = event.target.closest('.suggested-slot-card, .available-slot-card');
+                if (slotCard) {
+                    handleSlotCardSelection(slotCard);
+                    return;
+                }
 
+                const appointmentRow = event.target.closest('.appointment-row');
+                if (appointmentRow) {
+                    handleAppointmentRowClick(appointmentRow);
+                    return;
+                }
+
+                const appointmentActionBtn = event.target.closest('.appointment-action-btn');
+                if (appointmentActionBtn) {
+                    handleAppointmentAction(appointmentActionBtn);
+                    return;
+                }
+
+                const invoiceActionBtn = event.target.closest('.invoice-action-btn');
+                if (invoiceActionBtn) {
+                    handleInvoiceAction(invoiceActionBtn);
+                }
+            });
+            function handleMemoryPrompt(prompt, placeholderId) {
+                const lower = prompt.toLowerCase();
+                let speechSummary = null;
+
+                if (conversationMemory.lastAppointments.length) {
+                    const appointment = conversationMemory.lastSelectedAppointment || conversationMemory.lastAppointments[conversationMemory.lastAppointments.length - 1];
+                    if (appointment) {
+                        const appointmentId = appointment.appointmentId || appointment.queueNumber || 'the appointment';
+                        const when = formatDateTime(appointment.datetime);
+                        const customerName = appointment.customer || appointment.name || 'the customer';
+                        if (lower.includes('cancel') && (lower.includes('last') || lower.includes('one') || lower.includes('that'))) {
+                            const message = `Understood. I have canceled the appointment for ${customerName} at ${when}. Should I notify them?`;
+                            const markup = `
+                                <div class="chat-response-container space-y-3" data-context-id="${conversationMemory.lastSelectedContextId || ''}" data-context-type="appointment-follow-up">
+                                    <p class="text-sm text-slate-700">${message}</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" class="appointment-action-btn inline-flex items-center gap-2 rounded-md bg-orange-50 border border-orange-200 px-3 py-2 text-sm font-medium text-orange-600 hover:bg-orange-100" data-appointment-action="notify-cancel" data-context-id="${conversationMemory.lastSelectedContextId || ''}" data-index="${conversationMemory.lastSelectedAppointment ? 0 : conversationMemory.lastAppointments.length - 1}">
+                                            <i class="fa-solid fa-comment-dots"></i>
+                                            Notify Customer
+                                        </button>
+                                        <button type="button" class="appointment-action-btn inline-flex items-center gap-2 rounded-md bg-slate-100 border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200" data-appointment-action="undo" data-context-id="${conversationMemory.lastSelectedContextId || ''}" data-index="${conversationMemory.lastSelectedAppointment ? 0 : conversationMemory.lastAppointments.length - 1}">
+                                            <i class="fa-solid fa-rotate-left"></i>
+                                            Undo Cancellation
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            render.updateMessage(placeholderId, markup, true);
+                            conversationMemory.lastAction = { type: 'appointmentCancelled', appointmentId, timestamp: Date.now() };
+                            saveChatState();
+                            speechSummary = message;
+                            return { speech: speechSummary };
+                        }
+                    }
+                }
+
+                if (conversationMemory.lastSlots.length && lower.includes('book') && lower.includes('slot')) {
+                    let slot = conversationMemory.lastSlots[conversationMemory.lastSlots.length - 1];
+                    if (lower.includes('first')) {
+                        slot = conversationMemory.lastSlots[0];
+                    }
+                    if (slot) {
+                        const readable = [slot.displayTime, slot.displayDate].filter(Boolean).join(' on ');
+                        const message = `Great choice! I've prepared the booking for the ${readable || slot.iso}.`;
+                        const markup = `
+                            <div class="chat-response-container space-y-3" data-context-id="${conversationMemory.lastSlotsContextId || ''}" data-context-type="slots-follow-up">
+                                <p class="text-sm text-slate-700">${message}</p>
+                                <p class="text-xs text-slate-500">Use the quick action buttons if you would like to fine tune it further.</p>
+                            </div>
+                        `;
+                        render.updateMessage(placeholderId, markup, true);
+                        conversationMemory.lastAction = { type: 'slotPrepared', slot: slot.iso, timestamp: Date.now() };
+                        saveChatState();
+                        speechSummary = message;
+                        return { speech: speechSummary };
+                    }
+                }
+
+                if (conversationMemory.lastInvoice) {
+                    const invoice = conversationMemory.lastInvoice;
+                    const invoiceId = invoice.invoiceId || invoice.id || 'the invoice';
+                    const customerName = invoice.customer || 'the customer';
+                    if (lower.includes('send') && (lower.includes('customer') || lower.includes('whatsapp') || lower.includes('them'))) {
+                        const message = `I'll send invoice ${invoiceId} to ${customerName} via WhatsApp right away.`;
+                        const markup = `
+                            <div class="chat-response-container space-y-3" data-context-id="${conversationMemory.lastInvoiceContextId || ''}" data-context-type="invoice-follow-up">
+                                <p class="text-sm text-slate-700">${message}</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" class="invoice-action-btn inline-flex items-center gap-2 rounded-md bg-orange-50 border border-orange-200 px-3 py-2 text-sm font-medium text-orange-600 hover:bg-orange-100" data-invoice-action="send-whatsapp" data-context-id="${conversationMemory.lastInvoiceContextId || ''}">
+                                        <i class="fa-solid fa-paper-plane"></i>
+                                        Send again
+                                    </button>
+                                    <button type="button" class="invoice-action-btn inline-flex items-center gap-2 rounded-md bg-slate-100 border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200" data-invoice-action="mark-paid" data-context-id="${conversationMemory.lastInvoiceContextId || ''}">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        Mark as Paid
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        render.updateMessage(placeholderId, markup, true);
+                        conversationMemory.lastAction = { type: 'invoiceSend', invoiceId, timestamp: Date.now() };
+                        saveChatState();
+                        speechSummary = message;
+                        return { speech: speechSummary };
+                    }
+
+                    if (lower.includes('mark') && lower.includes('paid')) {
+                        const message = `Done. Invoice ${invoiceId} is now marked as paid.`;
+                        render.updateMessage(placeholderId, `<div class="chat-response-container"><p class="text-sm text-slate-700">${message}</p></div>`, true);
+                        conversationMemory.lastAction = { type: 'invoicePaid', invoiceId, timestamp: Date.now() };
+                        saveChatState();
+                        speechSummary = message;
+                        return { speech: speechSummary };
+                    }
+                }
+
+                return null;
+            }
             async function handleChatSubmit(e) {
                 e.preventDefault();
                 const prompt = chatInput.value.trim();
@@ -813,6 +1545,12 @@
 
                 const thinkingMessageId = render.addMessageToChat(`<div class="bg-slate-200 text-slate-800 p-3 rounded-lg"><p class="italic text-slate-500 thinking-bubble">Connecting to agent</p></div>`, false);
 
+                const memoryResult = handleMemoryPrompt(prompt, thinkingMessageId);
+                if (memoryResult) {
+                    if (memoryResult.speech) speak(memoryResult.speech, currentLang);
+                    return;
+                }
+
                 try {
                     const response = await api.runAgent(prompt);
 
@@ -824,21 +1562,21 @@
                         render.removeMessage(thinkingMessageId);
                     }
 
-                    const normalizedDataPoints = Array.isArray(response.dataPoints)
-                        ? response.dataPoints
-                        : response.dataPoints
-                            ? [response.dataPoints]
-                            : [];
-
-                    const toolContent = buildToolDisplay(response.tool, normalizedDataPoints);
+                    const toolContent = buildToolDisplay(response);
                     if (toolContent) {
-                        render.addMessageToChat(toolContent, false);
+                        const messageId = render.addMessageToChat(toolContent.markup, false, toolContent.renderOptions || { isRich: true, fullWidth: true });
+                        const messageElement = document.getElementById(messageId);
+                        if (toolContent.contexts) {
+                            toolContent.contexts.forEach(registerContext);
+                        }
+                        if (messageElement) {
+                            bootstrapCharts(messageElement);
+                        }
                     }
 
                     if (!textResponse && !toolContent) {
                         showToast("Received an empty or invalid response from the agent.", true);
                     }
-
                 } catch (error) {
                     console.error("API call failed:", error);
                     let errorMessage = "Sorry, something went wrong. Please check the backend and try again.";
@@ -851,15 +1589,16 @@
                     }
                     render.updateMessage(thinkingMessageId, `<p class="text-red-500">${errorMessage}</p>`, false);
                     speak(errorMessage, currentLang);
+                } finally {
+                    saveChatState();
                 }
             }
 
-            // --- SETTINGS ---
             function toggleModal(modal, show) {
-                 if (show) modal.classList.remove('hidden');
-                 else modal.classList.add('hidden');
+                if (show) modal.classList.remove('hidden');
+                else modal.classList.add('hidden');
             }
-            
+
             settingsBtn.addEventListener('click', () => toggleModal(settingsModal, true));
             closeModalBtn.addEventListener('click', () => toggleModal(settingsModal, false));
             saveSettingsBtn.addEventListener('click', () => {
@@ -868,14 +1607,15 @@
                 showToast(`Language set to ${languageSelect.options[languageSelect.selectedIndex].text}`);
                 toggleModal(settingsModal, false);
             });
-            
-            // --- INITIALIZATION ---
+
             async function init() {
+                restoreChatState();
                 chatForm.addEventListener('submit', handleChatSubmit);
                 tools = await api.getTools();
                 render.tools();
                 render.quickActions();
                 setupRecognition(currentLang);
+                bootstrapCharts(chatHistory);
             }
 
             init();
@@ -883,4 +1623,3 @@
     </script>
 </body>
 </html>
-
