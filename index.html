@@ -39,6 +39,11 @@
             cursor: pointer;
             transition: background-color 0.2s, color 0.2s, border-color 0.2s;
         }
+        .tab-btn-active {
+            background-color: #fff7ed;
+            color: #ea580c;
+            border-color: #f97316;
+        }
         .thinking-bubble::after {
             content: '.';
             animation: dots 1s steps(5, end) infinite;
@@ -137,24 +142,34 @@
             </div>
         </div>
 
-        <div class="lg:col-span-2 flex flex-col gap-6 min-h-[calc(100vh-120px)]">
-            <div class="agentic-pane flex-[3] overflow-hidden flex flex-col">
-                <div class="p-4 border-b text-slate-700">
-                    <h2 class="text-lg font-bold">Tool Catalog</h2>
-                    <p class="text-xs text-slate-500 mt-1">Browse the assistant's connected tools by category and trigger them instantly.</p>
-                </div>
-                <div id="tool-catalog" class="flex-1 p-4 space-y-5 overflow-y-auto bg-slate-50/40">
-                    <div class="flex items-center justify-center h-full text-slate-400">
-                        <i class="fa fa-spinner fa-spin mr-2"></i> Loading Tools...
+        <div class="lg:col-span-2 flex flex-col min-h-[calc(100vh-120px)]">
+            <div class="agentic-pane flex-1 overflow-hidden flex flex-col">
+                <div class="border-b bg-white">
+                    <div class="grid grid-cols-2">
+                        <button type="button" data-tab-target="tools" class="tab-btn px-4 py-3 text-sm font-semibold text-slate-500 border-b-2 border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">Tools</button>
+                        <button type="button" data-tab-target="quick-actions" class="tab-btn px-4 py-3 text-sm font-semibold text-slate-500 border-b-2 border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">Quick Actions</button>
                     </div>
                 </div>
-            </div>
-            <div class="agentic-pane flex-[2] overflow-hidden flex flex-col">
-                <div class="p-4 border-b text-slate-700">
-                    <h2 class="text-lg font-bold">Business Context & Quick Actions</h2>
-                    <p class="text-xs text-slate-500 mt-1">Choose a business from mock data and launch ready-made prompts tailored to it.</p>
+                <div class="flex-1 overflow-hidden relative">
+                    <div id="tools-panel" data-tab-panel="tools" class="absolute inset-0 flex flex-col">
+                        <div class="p-4 border-b text-slate-700">
+                            <h2 class="text-lg font-bold">Tool Catalog</h2>
+                            <p class="text-xs text-slate-500 mt-1">Browse the assistant's connected tools by category and trigger them instantly.</p>
+                        </div>
+                        <div id="tool-catalog" class="flex-1 p-4 space-y-5 overflow-y-auto bg-slate-50/40">
+                            <div class="flex items-center justify-center h-full text-slate-400">
+                                <i class="fa fa-spinner fa-spin mr-2"></i> Loading Tools...
+                            </div>
+                        </div>
+                    </div>
+                    <div id="quick-actions-panel" data-tab-panel="quick-actions" class="absolute inset-0 hidden flex flex-col">
+                        <div class="p-4 border-b text-slate-700">
+                            <h2 class="text-lg font-bold">Chillbreeze Quick Actions</h2>
+                            <p class="text-xs text-slate-500 mt-1">Jump into ready-made prompts tailored to Chillbreeze lounges.</p>
+                        </div>
+                        <div id="quick-actions-list" class="flex-1 p-4 space-y-5 overflow-y-auto bg-slate-50/40"></div>
+                    </div>
                 </div>
-                <div id="quick-actions-list" class="flex-1 p-4 space-y-5 overflow-y-auto bg-slate-50/40"></div>
             </div>
         </div>
     </main>
@@ -199,6 +214,8 @@
             const saveSettingsBtn = document.getElementById('save-settings-btn');
             const languageSelect = document.getElementById('language-select');
             const quickActionsList = document.getElementById('quick-actions-list');
+            const tabButtons = document.querySelectorAll('[data-tab-target]');
+            const tabPanels = document.querySelectorAll('[data-tab-panel]');
 
             let tools = [];
             let voiceEnabled = false;
@@ -229,6 +246,23 @@
             const activeCharts = {};
             let contextCounter = 0;
 
+            const activateTab = (targetId = 'tools') => {
+                tabButtons.forEach(button => {
+                    const isActive = button.dataset.tabTarget === targetId;
+                    button.classList.toggle('tab-btn-active', isActive);
+                    button.classList.toggle('text-orange-600', isActive);
+                    button.classList.toggle('text-slate-500', !isActive);
+                });
+                tabPanels.forEach(panel => {
+                    const matches = panel.dataset.tabPanel === targetId;
+                    panel.classList.toggle('hidden', !matches);
+                });
+            };
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => activateTab(button.dataset.tabTarget));
+            });
+
             const toolSchemas = {
                 "find_appointment": { title: "Find Appointment", icon: "fa-calendar-check", category: "Scheduling" },
                 "book_appointment": { title: "Book Appointment", icon: "fa-calendar-plus", category: "Scheduling" },
@@ -238,122 +272,48 @@
                 "lead_create": { title: "Create Lead", icon: "fa-user-plus", category: "Sales" }
             };
 
-            const quickActions = [
-                { label: "List appointments for a date", prompt: "List appointments for 22 September 2025", icon: "fa-calendar-days", accent: "bg-orange-100 text-orange-600" },
-                { label: "View invoices by date", prompt: "Show invoices created on 15 September 2025", icon: "fa-file-invoice", accent: "bg-slate-100 text-slate-600" },
-                { label: "Leads created this week", prompt: "Show me leads created this week", icon: "fa-user-group", accent: "bg-violet-100 text-violet-600" },
-                { label: "Business trends", prompt: "Give me the latest business trends", icon: "fa-chart-line", accent: "bg-blue-100 text-blue-600" },
-                { label: "Business report", prompt: "Generate a business performance report", icon: "fa-chart-pie", accent: "bg-emerald-100 text-emerald-600" },
-                { label: "Review count", prompt: "What is the current review count?", icon: "fa-star", accent: "bg-amber-100 text-amber-600" }
+            const quickActionTemplates = [
+                { label: "Today's schedule", promptTemplate: "List appointments scheduled at {location} today", icon: "fa-calendar-days", accent: "bg-orange-100 text-orange-600" },
+                { label: "Revenue snapshot", promptTemplate: "Show a revenue summary for {location}", icon: "fa-file-invoice-dollar", accent: "bg-emerald-100 text-emerald-600" },
+                { label: "Staff utilisation", promptTemplate: "Summarize staff utilisation at {location} this week", icon: "fa-user-group", accent: "bg-violet-100 text-violet-600" },
+                { label: "Customer feedback", promptTemplate: "Share the latest customer feedback for {location}", icon: "fa-star", accent: "bg-amber-100 text-amber-600" }
             ];
 
-            const businesses = [
+            const chillbreezeLocations = [
                 {
-                    id: 'qtick-wellness',
-                    name: 'QTick Wellness Hub',
-                    industry: 'Wellness & Spa',
-                    location: 'Marina Bay, Singapore',
-                    manager: 'Anita Chandra',
-                    contact: '+65 6550 1122',
-                    tagline: 'Holistic therapies with a modern twist',
-                    metrics: {
-                        appointments: 128,
-                        satisfaction: '4.8 / 5',
-                        revenue: '$18.2K'
-                    }
-                },
-                {
-                    id: 'glow-grow-spa',
-                    name: 'Glow & Grow Spa',
-                    industry: 'Beauty & Spa',
-                    location: 'Orchard Road, Singapore',
-                    manager: 'Marina Tan',
-                    contact: '+65 6900 2211',
-                    tagline: 'Premium skin rituals for instant radiance',
-                    metrics: {
-                        appointments: 96,
-                        satisfaction: '4.6 / 5',
-                        revenue: '$14.7K'
-                    }
-                },
-                {
-                    id: 'style-lounge',
-                    name: 'The Style Lounge',
-                    industry: 'Salon & Grooming',
-                    location: 'Joo Chiat, Singapore',
-                    manager: 'Ethan Low',
-                    contact: '+65 6120 0098',
-                    tagline: 'Creative styles for trendsetters',
+                    id: 'chillbreeze-orchard',
+                    name: 'Chillbreeze Orchard',
+                    area: 'Orchard, Singapore',
+                    focus: 'Flagship lounge with premium aromatherapy suites.',
                     metrics: {
                         appointments: 142,
-                        satisfaction: '4.9 / 5',
-                        revenue: '$20.1K'
+                        occupancy: '89%',
+                        satisfaction: '4.9 / 5'
+                    }
+                },
+                {
+                    id: 'chillbreeze-anna-nagar',
+                    name: 'Chillbreeze Anna Nagar',
+                    area: 'Anna Nagar, Chennai',
+                    focus: 'Community-favourite spa for restorative therapies.',
+                    metrics: {
+                        appointments: 118,
+                        occupancy: '82%',
+                        satisfaction: '4.7 / 5'
+                    }
+                },
+                {
+                    id: 'chillbreeze-adayar',
+                    name: 'Chillbreeze Adayar',
+                    area: 'Adayar, Chennai',
+                    focus: 'Beachside retreat specialising in detox rituals.',
+                    metrics: {
+                        appointments: 126,
+                        occupancy: '85%',
+                        satisfaction: '4.8 / 5'
                     }
                 }
             ];
-
-            const businessLookup = businesses.reduce((acc, business) => {
-                acc[business.id] = business;
-                return acc;
-            }, {});
-
-            const businessOptions = [
-                { label: 'Select a business', value: '' },
-                ...businesses.map(business => ({ label: business.name, value: business.id }))
-            ];
-
-            const renderBusinessDetails = (container, businessId) => {
-                if (!container) return;
-                const business = businessLookup[businessId];
-                if (!business) {
-                    container.innerHTML = `
-                        <div class="rounded-lg border border-dashed border-slate-200 bg-white/60 p-4 text-sm text-slate-500">
-                            Select a business to preview owner, contact, and performance highlights.
-                        </div>
-                    `;
-                    return;
-                }
-
-                container.innerHTML = `
-                    <div class="rounded-xl border border-orange-200 bg-orange-50/60 p-4">
-                        <div class="flex items-center justify-between gap-4">
-                            <div>
-                                <h3 class="text-sm font-semibold text-orange-700">${business.name}</h3>
-                                <p class="text-xs text-orange-600 mt-1">${business.tagline}</p>
-                            </div>
-                            <span class="text-[10px] font-semibold uppercase tracking-wide text-orange-500">${business.industry}</span>
-                        </div>
-                        <dl class="mt-4 grid grid-cols-2 gap-3 text-xs text-slate-600">
-                            <div>
-                                <dt class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Manager</dt>
-                                <dd class="mt-1 text-sm text-slate-800">${business.manager}</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Contact</dt>
-                                <dd class="mt-1 text-sm text-slate-800">${business.contact}</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Location</dt>
-                                <dd class="mt-1 text-sm text-slate-800">${business.location}</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Customer satisfaction</dt>
-                                <dd class="mt-1 text-sm text-slate-800">${business.metrics.satisfaction}</dd>
-                            </div>
-                        </dl>
-                    </div>
-                `;
-            };
-
-            const highlightBusinessCards = (cards, businessId) => {
-                cards.forEach(card => {
-                    const isActive = card.dataset.businessId === businessId;
-                    card.classList.toggle('border-orange-400', isActive);
-                    card.classList.toggle('shadow-lg', isActive);
-                    card.classList.toggle('ring-2', isActive);
-                    card.classList.toggle('ring-orange-200', isActive);
-                });
-            };
 
             const api = {
                 getTools: async () => {
@@ -848,7 +808,6 @@
                             <div class="flex items-center justify-between">
                                 <div>
                                     <h3 class="font-semibold text-slate-600 text-sm">${category}</h3>
-                                    <p class="text-[11px] text-slate-400 mt-1">${toolList.length} ${toolList.length === 1 ? 'tool' : 'tools'} available</p>
                                 </div>
                                 <span class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-orange-600">
                                     <i class="fa-solid fa-layer-group mr-1"></i> Suite
@@ -888,124 +847,69 @@
                 quickActions: () => {
                     if (!quickActionsList) return;
                     quickActionsList.innerHTML = `
-                        <div class="space-y-6">
-                            <section class="space-y-4">
-                                <div>
-                                    <label for="business-select" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Business context</label>
-                                    <div class="relative">
-                                        <select id="business-select" class="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-3 pr-10 text-sm text-slate-700 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100">
-                                            ${businessOptions.map(option => {
-                                                const safeValue = escapeAttribute(option.value);
-                                                const safeLabel = escapeAttribute(option.label);
-                                                return `<option value="${safeValue}">${safeLabel}</option>`;
-                                            }).join('')}
-                                        </select>
-                                        <i class="fa-solid fa-store text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-                                    </div>
-                                </div>
-                                <div id="selected-business-details"></div>
-                            </section>
-
-                            <section class="space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Available businesses</h3>
-                                    <span class="text-[11px] font-medium text-slate-400">${businesses.length} listed</span>
-                                </div>
-                                <div id="business-cards-grid" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    ${businesses.map(business => `
-                                        <button type="button" data-business-id="${escapeAttribute(business.id)}" class="business-card w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-4 text-left shadow-sm transition hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500/60">
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <h4 class="font-semibold text-slate-700">${escapeAttribute(business.name)}</h4>
-                                                    <p class="text-xs text-slate-500 mt-1">${escapeAttribute(business.location)}</p>
-                                                </div>
-                                                <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">${escapeAttribute(business.industry)}</span>
-                                            </div>
-                                            <dl class="mt-4 grid grid-cols-3 gap-2 text-[11px] text-slate-500">
-                                                <div class="rounded-lg bg-slate-50 p-2">
-                                                    <dt class="font-semibold text-slate-600 text-[10px] uppercase tracking-wide">Appointments</dt>
-                                                    <dd class="mt-1 text-sm text-slate-800">${escapeAttribute(String(business.metrics.appointments))}</dd>
-                                                </div>
-                                                <div class="rounded-lg bg-slate-50 p-2">
-                                                    <dt class="font-semibold text-slate-600 text-[10px] uppercase tracking-wide">Revenue</dt>
-                                                    <dd class="mt-1 text-sm text-slate-800">${escapeAttribute(business.metrics.revenue)}</dd>
-                                                </div>
-                                                <div class="rounded-lg bg-slate-50 p-2">
-                                                    <dt class="font-semibold text-slate-600 text-[10px] uppercase tracking-wide">Satisfaction</dt>
-                                                    <dd class="mt-1 text-sm text-slate-800">${escapeAttribute(business.metrics.satisfaction)}</dd>
-                                                </div>
-                                            </dl>
-                                            <p class="mt-4 text-[11px] font-medium text-orange-500">Tap to set context</p>
-                                        </button>
-                                    `).join('')}
-                                </div>
-                            </section>
-
-                            <section class="space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Quick actions</h3>
-                                    <span class="text-[11px] font-medium text-slate-400">${quickActions.length} prompts</span>
-                                </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    ${quickActions.map((action, index) => `
-                                        <button type="button" data-prompt="${action.prompt.replace(/"/g, '&quot;')}" class="quick-action-card w-full border border-slate-200 rounded-xl bg-white px-4 py-4 text-left shadow-sm hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500/60">
+                        <div class="space-y-5">
+                            ${chillbreezeLocations.map(location => {
+                                const metrics = location.metrics || {};
+                                const actionButtons = quickActionTemplates.map(action => {
+                                    const prompt = action.promptTemplate.replace(/\{location\}/g, location.name);
+                                    return `
+                                        <button type="button" data-prompt="${escapeAttribute(prompt)}" class="quick-action-card w-full border border-slate-200 rounded-xl bg-white px-4 py-4 text-left shadow-sm hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500/60">
                                             <div class="flex items-center gap-3">
                                                 <div class="h-12 w-12 rounded-full flex items-center justify-center ${action.accent}">
                                                     <i class="fa-solid ${action.icon} text-lg"></i>
                                                 </div>
                                                 <div class="flex-1">
-                                                    <p class="font-semibold text-slate-700">${action.label}</p>
-                                                    <p class="text-xs text-slate-500 mt-1">QA-${index + 1}</p>
+                                                    <p class="font-semibold text-slate-700">${escapeAttribute(action.label)}</p>
+                                                    <p class="text-xs text-slate-500 mt-1">${escapeAttribute(location.name)}</p>
                                                 </div>
                                                 <i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i>
                                             </div>
                                         </button>
-                                    `).join('')}
-                                </div>
-                            </section>
+                                    `;
+                                }).join('');
+                                return `
+                                    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                            <div>
+                                                <h3 class="text-sm font-semibold text-slate-700">${escapeAttribute(location.name)}</h3>
+                                                <p class="text-xs text-slate-500 mt-1">${escapeAttribute(location.focus)}</p>
+                                            </div>
+                                            <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">${escapeAttribute(location.area)}</span>
+                                        </div>
+                                        <dl class="mt-4 grid grid-cols-3 gap-2 text-[11px] text-slate-500">
+                                            <div class="rounded-lg bg-slate-50 p-2">
+                                                <dt class="font-semibold text-slate-600 text-[10px] uppercase tracking-wide">Appointments</dt>
+                                                <dd class="mt-1 text-sm text-slate-800">${escapeAttribute(metrics.appointments ?? '-')}</dd>
+                                            </div>
+                                            <div class="rounded-lg bg-slate-50 p-2">
+                                                <dt class="font-semibold text-slate-600 text-[10px] uppercase tracking-wide">Occupancy</dt>
+                                                <dd class="mt-1 text-sm text-slate-800">${escapeAttribute(metrics.occupancy ?? '-')}</dd>
+                                            </div>
+                                            <div class="rounded-lg bg-slate-50 p-2">
+                                                <dt class="font-semibold text-slate-600 text-[10px] uppercase tracking-wide">Satisfaction</dt>
+                                                <dd class="mt-1 text-sm text-slate-800">${escapeAttribute(metrics.satisfaction ?? '-')}</dd>
+                                            </div>
+                                        </dl>
+                                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            ${actionButtons}
+                                        </div>
+                                    </section>
+                                `;
+                            }).join('')}
                         </div>
                     `;
-
-                    const businessSelect = document.getElementById('business-select');
-                    const businessDetails = document.getElementById('selected-business-details');
-                    const businessCards = Array.from(quickActionsList.querySelectorAll('[data-business-id]'));
-
-                    const updateBusinessContext = (businessId) => {
-                        renderBusinessDetails(businessDetails, businessId);
-                        highlightBusinessCards(businessCards, businessId);
-                    };
-
-                    if (businessSelect) {
-                        businessSelect.addEventListener('change', () => updateBusinessContext(businessSelect.value));
-                        updateBusinessContext(businessSelect.value);
-                    }
                 }
             };
-            quickActionsList.addEventListener('click', (event) => {
-                const businessCard = event.target.closest('[data-business-id]');
-                if (businessCard) {
-                    const businessSelect = document.getElementById('business-select');
-                    if (businessSelect) {
-                        const businessId = businessCard.dataset.businessId;
-                        if (businessSelect.value !== businessId) {
-                            businessSelect.value = businessId;
-                        }
-                        businessSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                    return;
-                }
-
-                const card = event.target.closest('.quick-action-card[data-prompt]');
-                if (!card) return;
-                const prompt = card.dataset.prompt;
-                const businessSelect = document.getElementById('business-select');
-                const selectedBusinessId = businessSelect ? businessSelect.value : '';
-                const selectedBusiness = businessLookup[selectedBusinessId];
-                const promptWithBusiness = selectedBusiness ? `${prompt} for ${selectedBusiness.name}` : prompt;
-                chatInput.value = promptWithBusiness;
-                chatInput.focus();
-                chatForm.dispatchEvent(new Event('submit', { bubbles: true }));
-            });
+            if (quickActionsList) {
+                quickActionsList.addEventListener('click', (event) => {
+                    const card = event.target.closest('.quick-action-card[data-prompt]');
+                    if (!card) return;
+                    const prompt = card.dataset.prompt;
+                    chatInput.value = prompt;
+                    chatInput.focus();
+                    chatForm.dispatchEvent(new Event('submit', { bubbles: true }));
+                });
+            }
 
             function formatTextContent(text) {
                 if (!text) return '';
@@ -1850,6 +1754,7 @@
                 tools = await api.getTools();
                 render.tools();
                 render.quickActions();
+                activateTab('tools');
                 setupRecognition(currentLang);
                 bootstrapCharts(chatHistory);
             }
