@@ -311,10 +311,24 @@
                     accent: "bg-orange-100 text-orange-600"
                 },
                 {
+                    label: "Customer snapshot",
+                    promptTemplate: "Share a customer snapshot for {location} covering {timeRange}",
+                    icon: "fa-user",
+                    accent: "bg-sky-100 text-sky-600"
+                },
+                {
+                    label: "Business summary",
+                    promptTemplate: "Summarize key business metrics for {location} for {timeRange}",
+                    icon: "fa-briefcase",
+                    accent: "bg-emerald-100 text-emerald-600",
+                    description: "High level performance update",
+                    roles: ["manager"]
+                },
+                {
                     label: "Revenue snapshot",
                     promptTemplate: "Show a revenue summary for {location} for {timeRange}",
                     icon: "fa-file-invoice-dollar",
-                    accent: "bg-emerald-100 text-emerald-600"
+                    accent: "bg-amber-100 text-amber-600"
                 },
                 {
                     label: "Staff utilisation",
@@ -323,10 +337,29 @@
                     accent: "bg-violet-100 text-violet-600"
                 },
                 {
-                    label: "Customer feedback",
-                    promptTemplate: "Share the latest customer feedback for {location} for {timeRange}",
-                    icon: "fa-star",
-                    accent: "bg-amber-100 text-amber-600"
+                    label: "Lead follow-ups",
+                    promptTemplate: "List priority leads for {location} requiring action in {timeRange}",
+                    icon: "fa-user-plus",
+                    accent: "bg-rose-100 text-rose-600",
+                    description: "Who needs attention today",
+                    roles: ["manager"]
+                },
+                {
+                    label: "Business events",
+                    promptTemplate: "Show notable business events at {location} for {timeRange}",
+                    icon: "fa-calendar-check",
+                    accent: "bg-purple-100 text-purple-600",
+                    description: "What's happening on the ground",
+                    roles: ["manager"]
+                },
+                {
+                    label: "Branch consolidated summary",
+                    promptTemplate: "Provide a consolidated branch performance summary for {timeRange}",
+                    icon: "fa-chart-pie",
+                    accent: "bg-slate-100 text-slate-600",
+                    description: "Roll-up across lounges",
+                    roles: ["ceo"],
+                    showLocation: false
                 }
             ];
 
@@ -1016,100 +1049,47 @@
                         <option value="${escapeAttribute(location.id)}">${escapeAttribute(location.name)}</option>
                     `).join('');
 
-                    const summaryMetrics = Array.isArray(selectedLocation.summaryMetrics) ? selectedLocation.summaryMetrics : [];
-                    const events = Array.isArray(selectedLocation.events) ? selectedLocation.events : [];
-                    const branchMetrics = branchConsolidatedSummary && Array.isArray(branchConsolidatedSummary.metrics) ? branchConsolidatedSummary.metrics : [];
-                    const branchHighlights = branchConsolidatedSummary && Array.isArray(branchConsolidatedSummary.highlights) ? branchConsolidatedSummary.highlights : [];
+                    const availableActions = quickActionTemplates.filter(action => {
+                        if (!Array.isArray(action.roles) || action.roles.length === 0) {
+                            return true;
+                        }
+                        return action.roles.includes(currentRole);
+                    });
 
-                    const formatChangeBadge = (change) => {
-                        const formatted = formatChange(change);
-                        if (!formatted) return '';
-                        const isNegative = typeof change === 'number' ? change < 0 : String(change || '').trim().startsWith('-');
-                        const badgeClass = isNegative ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600';
-                        return `<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${badgeClass}">${formatted}</span>`;
-                    };
-
-                    const actionCards = quickActionTemplates.map(action => `
-                        <div class="quick-action-card group w-full rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-lg" role="button" tabindex="0" data-template="${escapeAttribute(action.promptTemplate)}">
-                            <div class="flex items-start gap-4">
-                                <div class="h-12 w-12 rounded-xl flex items-center justify-center ${action.accent}">
-                                    <i class="fa-solid ${action.icon} text-lg"></i>
-                                </div>
-                                <div class="flex-1 space-y-2">
-                                    <p class="text-base font-semibold text-slate-800">${escapeAttribute(action.label)}</p>
-                                    <p class="text-xs text-slate-500">${escapeAttribute(selectedLocation.name)}</p>
-                                </div>
-                                <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 transition group-hover:text-orange-500"></i>
-                            </div>
-                            <div class="mt-6 flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-2 text-[11px] font-medium text-slate-500">
-                                    <i class="fa-regular fa-calendar"></i>
-                                    <span>Time range</span>
-                                </div>
-                                <select class="time-range-select rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-200/70" data-range-select>
-                                    ${timeRangeOptions.map((option, index) => `
-                                        <option value="${escapeAttribute(option.value)}" ${index === 0 ? 'selected' : ''}>${escapeAttribute(option.label)}</option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                        </div>
-                    `).join('');
-
-                    const summaryCards = summaryMetrics.map(metric => {
-                        const label = escapeAttribute(metric.label || 'Metric');
-                        const value = escapeAttribute(metric.value ?? '-');
-                        const badge = formatChangeBadge(metric.change);
+                    const actionCards = availableActions.map(action => {
+                        const description = action.description
+                            ? `<p class="text-xs text-slate-500">${escapeAttribute(action.description)}</p>`
+                            : '';
+                        const locationLine = action.showLocation === false
+                            ? ''
+                            : `<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">${escapeAttribute(selectedLocation.name)}</p>`;
                         return `
-                            <div class="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm">
-                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${label}</p>
-                                <p class="text-lg font-bold text-slate-800">${value}</p>
-                                ${badge || ''}
-                            </div>
-                        `;
-                    }).join('');
-
-                    const eventsList = events.map(item => {
-                        const title = escapeAttribute(item.title || 'Event');
-                        const description = item.description ? `<p class="text-xs text-slate-500">${escapeAttribute(item.description)}</p>` : '';
-                        const tag = item.tag ? `<span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-orange-500">${escapeAttribute(item.tag)}</span>` : '';
-                        const accent = escapeAttribute(item.accent || 'bg-slate-100 text-slate-500');
-                        const icon = escapeAttribute(item.icon || 'fa-calendar-day');
-                        const time = escapeAttribute(item.time || '');
-                        return `
-                            <li class="flex items-start gap-3 rounded-xl border border-slate-200 bg-white/95 px-3 py-3 shadow-sm">
-                                <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${accent}">
-                                    <i class="fa-solid ${icon}"></i>
-                                </span>
-                                <div class="flex-1 space-y-1">
-                                    <div class="flex items-start justify-between gap-2">
-                                        <div class="flex items-center gap-2">
-                                            <p class="text-sm font-semibold text-slate-700">${title}</p>
-                                            ${tag}
-                                        </div>
-                                        <span class="text-xs font-medium text-slate-400">${time}</span>
+                            <div class="quick-action-card group w-full rounded-2xl border border-slate-200/80 bg-white px-5 py-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-lg" role="button" tabindex="0" data-template="${escapeAttribute(action.promptTemplate)}">
+                                <div class="flex items-start gap-4">
+                                    <div class="h-12 w-12 rounded-xl flex items-center justify-center ${action.accent}">
+                                        <i class="fa-solid ${action.icon} text-lg"></i>
                                     </div>
-                                    ${description}
+                                    <div class="flex-1 space-y-2">
+                                        <p class="text-base font-semibold text-slate-800">${escapeAttribute(action.label)}</p>
+                                        ${description}
+                                        ${locationLine}
+                                    </div>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-slate-300 transition group-hover:text-orange-500"></i>
                                 </div>
-                            </li>
-                        `;
-                    }).join('');
-
-                    const branchCards = branchMetrics.map(metric => {
-                        const label = escapeAttribute(metric.label || 'Metric');
-                        const value = escapeAttribute(metric.value ?? '-');
-                        const badge = formatChangeBadge(metric.change);
-                        return `
-                            <div class="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm">
-                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${label}</p>
-                                <p class="text-lg font-bold text-slate-800">${value}</p>
-                                ${badge || ''}
+                                <div class="mt-6 flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-2 text-[11px] font-medium text-slate-500">
+                                        <i class="fa-regular fa-calendar"></i>
+                                        <span>Time range</span>
+                                    </div>
+                                    <select class="time-range-select rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-200/70" data-range-select>
+                                        ${timeRangeOptions.map((option, index) => `
+                                            <option value="${escapeAttribute(option.value)}" ${index === 0 ? 'selected' : ''}>${escapeAttribute(option.label)}</option>
+                                        `).join('')}
+                                    </select>
+                                </div>
                             </div>
                         `;
                     }).join('');
-
-                    const branchHighlightList = branchHighlights.length
-                        ? `<ul class="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-500">${branchHighlights.map(item => `<li>${escapeAttribute(item)}</li>`).join('')}</ul>`
-                        : '';
 
                     const spotlightSection = `
                         <section class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur">
@@ -1141,61 +1121,25 @@
                         </section>
                     `;
 
-                    const businessSummarySection = `
-                        <section class="rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-sm">
-                            <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <h3 class="text-sm font-semibold text-slate-700">Business summary</h3>
-                                    <p class="text-xs text-slate-500">Snapshot for ${escapeAttribute(selectedLocation.name)}</p>
-                                </div>
-                                <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">Manager view</span>
-                            </div>
-                            ${summaryMetrics.length ? `<div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">${summaryCards}</div>` : `<p class="mt-3 text-xs text-slate-500">No summary metrics available.</p>`}
-                        </section>
-                    `;
-
-                    const eventsSection = `
-                        <section class="rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-sm">
-                            <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <h3 class="text-sm font-semibold text-slate-700">Lead & business events</h3>
-                                    <p class="text-xs text-slate-500">What needs attention today.</p>
-                                </div>
-                                <i class="fa-solid fa-calendar-check text-slate-300"></i>
-                            </div>
-                            ${events.length ? `<ul class="mt-3 space-y-3">${eventsList}</ul>` : `<p class="mt-3 text-xs text-slate-500">No scheduled events for today.</p>`}
-                        </section>
-                    `;
-
-                    const branchSummarySection = `
-                        <section class="rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-sm">
-                            <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <h3 class="text-sm font-semibold text-slate-700">Branch consolidate summary</h3>
-                                    <p class="text-xs text-slate-500">${escapeAttribute(branchConsolidatedSummary?.period || '')}${branchConsolidatedSummary?.lounges ? ` · ${escapeAttribute(String(branchConsolidatedSummary.lounges) + ' lounges')}` : ''}</p>
-                                </div>
-                                <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-orange-500">Executive</span>
-                            </div>
-                            ${branchMetrics.length ? `<div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">${branchCards}</div>` : `<p class="mt-3 text-xs text-slate-500">No consolidated data available.</p>`}
-                            ${branchHighlightList}
-                        </section>
-                    `;
-
-                    const sections = [spotlightSection];
-                    if (currentRole === 'manager') {
-                        sections.push(businessSummarySection, eventsSection);
-                    } else if (currentRole === 'ceo') {
-                        sections.push(branchSummarySection);
-                    }
-                    sections.push(`
-                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            ${actionCards}
-                        </div>
-                    `);
+                    const cardsSection = availableActions.length
+                        ? `<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">${actionCards}</div>`
+                        : `<div class="flex h-32 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/80 text-sm text-slate-500">No quick actions configured for this role yet.</div>`;
 
                     quickActionsList.innerHTML = `
                         <div class="flex flex-col gap-5">
-                            ${sections.filter(Boolean).join('')}
+                            ${spotlightSection}
+                            <section class="rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur-sm">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-slate-700">Insights & actions</h3>
+                                        <p class="text-xs text-slate-500">Tap any card to ask the assistant instantly.</p>
+                                    </div>
+                                    <i class="fa-solid fa-wand-magic-sparkles text-slate-300"></i>
+                                </div>
+                                <div class="mt-4">
+                                    ${cardsSection}
+                                </div>
+                            </section>
                         </div>
                     `;
 
