@@ -25,6 +25,24 @@
         .main-pane-height {
              height: calc(100vh - 120px);
         }
+        .side-rail-toggle-btn {
+            position: absolute;
+            top: 1rem;
+            right: -0.75rem;
+            z-index: 20;
+        }
+        .rail-collapsed #side-rail {
+            display: none;
+        }
+        .rail-collapsed #chat-pane {
+            grid-column: span 5 / span 5;
+        }
+        .rail-collapsed #side-rail-reveal {
+            display: flex;
+        }
+        #side-rail-reveal {
+            display: none;
+        }
         .modal-backdrop, .drag-overlay {
             background-color: rgba(0, 0, 0, 0.5);
             transition: opacity 0.3s ease-in-out;
@@ -93,6 +111,28 @@
             transform: translateY(-3px);
             box-shadow: 0 18px 35px -25px rgba(15, 23, 42, 0.45);
         }
+        .theme-dark body,
+        .theme-dark {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        body.theme-dark {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        body.theme-dark .agentic-pane {
+            background-color: #1e293b;
+            color: #e2e8f0;
+        }
+        body.theme-dark .chat-response-container {
+            background-color: #1f2937;
+            border-color: #334155;
+        }
+        body.theme-dark .tab-btn-active {
+            background-color: #1f2937;
+            color: #f59e0b;
+            border-color: #f97316;
+        }
     </style>
 </head>
 <body class="text-slate-800">
@@ -103,9 +143,12 @@
                 <i class="fa-solid fa-robot mr-2"></i>QTick AI Smart Assistant
             </h1>
             <div class="flex items-center space-x-4">
-                <button id="tts-toggle-btn" class="text-slate-400 hover:text-orange-600" title="Toggle Voice Response">
-                    <i class="fa-solid fa-volume-xmark"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="tts-toggle-btn" class="text-slate-400 hover:text-orange-600" title="Enable voice responses" aria-pressed="false">
+                        <i class="fa-solid fa-volume-xmark"></i>
+                    </button>
+                    <span id="tts-status" class="text-xs font-semibold text-slate-400">Voice off</span>
+                </div>
                 <div class="relative" id="role-switcher">
                     <button id="role-switcher-btn" class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-orange-300 hover:text-orange-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
                         <i class="fa-solid fa-user-tie text-orange-500"></i>
@@ -130,16 +173,10 @@
         </nav>
     </header>
 
-    <main class="container mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div class="lg:col-span-3 agentic-pane main-pane-height relative">
+    <main id="app-layout" class="container mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div id="chat-pane" class="lg:col-span-3 agentic-pane main-pane-height relative">
             <h2 class="text-lg font-bold p-4 border-b text-slate-700">Agent Chat</h2>
-            <div id="chat-history" class="flex-grow p-4 space-y-4 overflow-y-auto">
-                <div class="flex">
-                    <div class="bg-slate-200 text-slate-800 p-3 rounded-lg max-w-md">
-                        <p>I can now display data in tables, cards, and invoice summaries. Try asking me to \"list appointments\".</p>
-                    </div>
-                </div>
-            </div>
+            <div id="chat-history" class="flex-grow p-4 space-y-4 overflow-y-auto"></div>
             <div id="suggestion-chips-container" class="p-4 pt-0 flex flex-wrap gap-2"></div>
             <div class="p-4 border-t bg-slate-50">
                 <div id="file-preview-container" class="hidden mb-2"></div>
@@ -147,7 +184,10 @@
                     <input type="file" id="file-input" class="hidden">
                     <button type="button" id="attach-btn" class="bg-slate-200 text-slate-600 font-semibold p-2.5 rounded-md hover:bg-slate-300 transition flex-shrink-0 h-10 w-10"><i class="fa-solid fa-paperclip"></i></button>
                     <input id="chat-input" placeholder="Enter your goal..." class="flex-grow w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                    <button type="button" id="mic-btn" class="bg-orange-500 text-white font-semibold p-2.5 rounded-md hover:bg-orange-600 transition flex-shrink-0 h-10 w-10"><i class="fa-solid fa-microphone"></i></button>
+                    <button type="button" id="mic-btn" class="bg-orange-500 text-white font-semibold p-2.5 rounded-md hover:bg-orange-600 transition flex-shrink-0 h-10 w-10" aria-pressed="false" aria-label="Start voice capture">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+                    <span id="mic-status" class="hidden text-xs text-orange-600 font-semibold whitespace-nowrap" aria-live="polite"></span>
                     <button type="submit" class="bg-orange-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-700 transition flex-shrink-0">Run</button>
                 </form>
             </div>
@@ -159,7 +199,15 @@
             </div>
         </div>
 
-        <div class="lg:col-span-2 flex flex-col min-h-[calc(100vh-120px)]">
+        <button id="side-rail-reveal" class="side-rail-toggle-btn items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-600 shadow-md ring-1 ring-slate-200 hover:text-orange-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label="Show tools panel" tabindex="-1">
+            <i class="fa-solid fa-thumbtack"></i>
+            Show tools
+        </button>
+        <div id="side-rail" class="lg:col-span-2 flex flex-col min-h-[calc(100vh-120px)] relative">
+            <button id="collapse-rail-btn" class="side-rail-toggle-btn hidden lg:flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-500 shadow-md ring-1 ring-slate-200 hover:text-orange-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400" aria-label="Hide tools panel" aria-pressed="true">
+                <i class="fa-solid fa-thumbtack-slash"></i>
+                Hide tools
+            </button>
             <div class="agentic-pane flex-1 overflow-hidden flex flex-col">
                 <div class="border-b bg-white">
                     <div class="grid grid-cols-2">
@@ -169,9 +217,21 @@
                 </div>
                 <div class="flex-1 overflow-hidden relative">
                     <div id="tools-panel" data-tab-panel="tools" class="absolute inset-0 flex flex-col">
-                        <div class="p-4 border-b text-slate-700">
+                        <div class="p-4 border-b text-slate-700 space-y-4">
                             <h2 class="text-lg font-bold">Tool Catalog</h2>
                             <p class="text-xs text-slate-500 mt-1">Browse the assistant's connected tools by category and trigger them instantly.</p>
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6">
+                                <label class="sm:col-span-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus-within:border-orange-300 focus-within:ring-2 focus-within:ring-orange-200/70">
+                                    <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                                    <input id="tool-search" type="search" placeholder="Search tools by name or description" class="w-full border-none bg-transparent focus:outline-none" />
+                                </label>
+                                <label class="sm:col-span-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus-within:border-orange-300 focus-within:ring-2 focus-within:ring-orange-200/70">
+                                    <i class="fa-solid fa-filter text-slate-400"></i>
+                                    <select id="tool-category-filter" class="w-full border-none bg-transparent focus:outline-none">
+                                        <option value="all">All categories</option>
+                                    </select>
+                                </label>
+                            </div>
                         </div>
                         <div id="tool-catalog" class="flex-1 p-4 space-y-5 overflow-y-auto bg-slate-50/40">
                             <div class="flex items-center justify-center h-full text-slate-400">
@@ -199,13 +259,47 @@
                 <h3 class="text-lg font-bold">Settings</h3>
                 <button id="close-modal-btn" class="text-slate-500 hover:text-slate-800 text-2xl">&times;</button>
             </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <label for="language-select" class="block text-sm font-medium text-slate-700 mb-1">Language for Voice</label>
+            <div class="p-6 space-y-6">
+                <div class="space-y-2">
+                    <h4 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Voice & language</h4>
+                    <label for="language-select" class="block text-sm font-medium text-slate-700">Preferred speech language</label>
                     <select id="language-select" class="w-full p-2 border rounded-md bg-white">
                         <option value="en-US">English (US)</option>
                         <option value="ta-IN">Tamil (India)</option>
                     </select>
+                </div>
+                <div class="space-y-2">
+                    <h4 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Theme</h4>
+                    <div class="grid gap-2 sm:grid-cols-3">
+                        <label class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                            <input type="radio" name="theme" value="system" class="text-orange-600" checked>
+                            System
+                        </label>
+                        <label class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                            <input type="radio" name="theme" value="light" class="text-orange-600">
+                            Light
+                        </label>
+                        <label class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                            <input type="radio" name="theme" value="dark" class="text-orange-600">
+                            Dark
+                        </label>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <h4 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Default role</h4>
+                    <p class="text-xs text-slate-500">Choose which workspace opens by default when you return.</p>
+                    <select id="default-role-select" class="w-full p-2 border rounded-md bg-white">
+                        <option value="manager">Manager workspace</option>
+                        <option value="ceo">Executive overview</option>
+                    </select>
+                </div>
+                <div class="space-y-2">
+                    <h4 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Notification volume</h4>
+                    <div class="flex items-center gap-3">
+                        <input id="notification-volume" type="range" min="0" max="1" step="0.1" class="flex-1">
+                        <span id="notification-volume-value" class="text-sm font-semibold text-slate-600">100%</span>
+                    </div>
+                    <p class="text-xs text-slate-500">Controls the loudness of spoken summaries and sound cues.</p>
                 </div>
                 <hr>
                 <button id="save-settings-btn" class="w-full bg-orange-600 text-white font-semibold py-2 px-3 rounded-md hover:bg-orange-700">Save Settings</button>
@@ -221,21 +315,34 @@
             const chatInput = document.getElementById('chat-input');
             const attachBtn = document.getElementById('attach-btn');
             const fileInput = document.getElementById('file-input');
+            const filePreviewContainer = document.getElementById('file-preview-container');
             const dragOverlay = document.getElementById('drag-overlay');
             const micBtn = document.getElementById('mic-btn');
+            const micStatus = document.getElementById('mic-status');
             const ttsToggleBtn = document.getElementById('tts-toggle-btn');
+            const ttsStatus = document.getElementById('tts-status');
             const toastContainer = document.getElementById('toast-container');
             const settingsBtn = document.getElementById('settings-btn');
             const settingsModal = document.getElementById('settings-modal');
             const closeModalBtn = document.getElementById('close-modal-btn');
             const saveSettingsBtn = document.getElementById('save-settings-btn');
             const languageSelect = document.getElementById('language-select');
+            const defaultRoleSelect = document.getElementById('default-role-select');
+            const notificationVolumeInput = document.getElementById('notification-volume');
+            const notificationVolumeValue = document.getElementById('notification-volume-value');
+            const themeRadios = Array.from(document.querySelectorAll('input[name="theme"]'));
             const quickActionsList = document.getElementById('quick-actions-list');
+            const suggestionChipsContainer = document.getElementById('suggestion-chips-container');
             const tabButtons = document.querySelectorAll('[data-tab-target]');
             const tabPanels = document.querySelectorAll('[data-tab-panel]');
             const roleSwitcherBtn = document.getElementById('role-switcher-btn');
             const roleSwitcherMenu = document.getElementById('role-switcher-menu');
             const roleSwitcherLabel = document.getElementById('role-switcher-label');
+            const appLayout = document.getElementById('app-layout');
+            const collapseRailBtn = document.getElementById('collapse-rail-btn');
+            const sideRailReveal = document.getElementById('side-rail-reveal');
+            const toolSearchInput = document.getElementById('tool-search');
+            const toolCategorySelect = document.getElementById('tool-category-filter');
 
             let tools = [];
             let voiceEnabled = false;
@@ -243,11 +350,48 @@
             let recognition;
             let speechSubmitting = false;
             let currentRole = 'manager';
+            let toolSearchTerm = '';
+            let toolCategoryFilter = 'all';
+            let toolFiltersHydrated = false;
+            let themePreference = 'system';
+            let pendingThemePreference = 'system';
+            let notificationVolume = 1;
+            let sideRailCollapsed = false;
+            let onboardingIndex = 0;
+
+            const onboardingTips = [
+                {
+                    title: 'Review today\'s wins',
+                    description: 'Ask for “Summarize today\'s revenue drivers” to see which lounges over-performed.',
+                    icon: 'fa-chart-line'
+                },
+                {
+                    title: 'Keep customers in the loop',
+                    description: 'Try “Send a reminder to the next VIP guest” before the appointment begins.',
+                    icon: 'fa-comments'
+                },
+                {
+                    title: 'Spot scheduling gaps',
+                    description: 'Say “Show open slots at Chillbreeze Orchard tomorrow afternoon.”',
+                    icon: 'fa-calendar-check'
+                }
+            ];
+
+            const suggestionPrompts = [
+                'List appointments at Chillbreeze Orchard today',
+                'Share a customer snapshot for Anna Nagar this week',
+                'Summarize key business metrics for last month',
+                'Prepare an invoice for Senthil with detox add-ons'
+            ];
 
             const STORAGE_KEYS = {
                 chat: 'qtick-chat-html',
                 context: 'qtick-chat-context',
-                role: 'qtick-role-preference'
+                role: 'qtick-role-preference',
+                theme: 'qtick-theme-preference',
+                volume: 'qtick-notification-volume',
+                sideRail: 'qtick-side-rail-collapsed',
+                voice: 'qtick-voice-enabled'
             };
 
             const conversationMemory = {
@@ -265,14 +409,217 @@
                 lastAction: null
             };
 
+            const prefersDarkScheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+
+            function resolveTheme(preference) {
+                if (preference === 'dark' || preference === 'light') return preference;
+                if (prefersDarkScheme && typeof prefersDarkScheme.matches === 'boolean') {
+                    return prefersDarkScheme.matches ? 'dark' : 'light';
+                }
+                return 'light';
+            }
+
+            function applyTheme(preference) {
+                const resolved = resolveTheme(preference);
+                document.body.classList.toggle('theme-dark', resolved === 'dark');
+            }
+
+            function updateVolumeLabel(value = notificationVolume) {
+                if (!notificationVolumeValue) return;
+                notificationVolumeValue.textContent = `${Math.round(value * 100)}%`;
+            }
+
+            function updateTtsAffordance() {
+                if (!ttsToggleBtn) return;
+                ttsToggleBtn.innerHTML = voiceEnabled
+                    ? '<i class="fa-solid fa-volume-high text-orange-600"></i>'
+                    : '<i class="fa-solid fa-volume-xmark"></i>';
+                ttsToggleBtn.setAttribute('aria-pressed', String(voiceEnabled));
+                ttsToggleBtn.title = voiceEnabled ? 'Disable voice responses' : 'Enable voice responses';
+                if (ttsStatus) {
+                    ttsStatus.textContent = voiceEnabled ? 'Voice on' : 'Voice off';
+                    ttsStatus.classList.toggle('text-orange-600', voiceEnabled);
+                    ttsStatus.classList.toggle('text-slate-400', !voiceEnabled);
+                }
+            }
+
+            function setMicStatus(message = '', intent = 'idle') {
+                if (!micStatus) return;
+                if (!message) {
+                    micStatus.classList.add('hidden');
+                    micStatus.textContent = '';
+                    return;
+                }
+                micStatus.classList.remove('hidden');
+                micStatus.textContent = message;
+                micStatus.classList.remove('text-red-500', 'text-orange-600', 'text-emerald-500');
+                const colorClass = intent === 'listening' ? 'text-red-500' : intent === 'ready' ? 'text-emerald-500' : 'text-orange-600';
+                micStatus.classList.add(colorClass);
+            }
+
+            function updateSideRailState(collapsed) {
+                sideRailCollapsed = collapsed;
+                if (appLayout) {
+                    appLayout.classList.toggle('rail-collapsed', collapsed);
+                }
+                if (collapseRailBtn) {
+                    collapseRailBtn.setAttribute('aria-pressed', String(!collapsed));
+                }
+                if (sideRailReveal) {
+                    sideRailReveal.setAttribute('aria-hidden', String(!collapsed));
+                    sideRailReveal.setAttribute('tabindex', collapsed ? '0' : '-1');
+                }
+                try {
+                    localStorage.setItem(STORAGE_KEYS.sideRail, String(collapsed));
+                } catch (error) {
+                    console.warn('Unable to persist rail preference', error);
+                }
+            }
+
+            function renderSuggestionChips() {
+                if (!suggestionChipsContainer) return;
+                if (!suggestionPrompts.length) {
+                    suggestionChipsContainer.classList.add('hidden');
+                    suggestionChipsContainer.innerHTML = '';
+                    return;
+                }
+                suggestionChipsContainer.classList.remove('hidden');
+                suggestionChipsContainer.innerHTML = suggestionPrompts.map(prompt => `
+                    <button type="button" class="suggestion-chip rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 hover:border-orange-300 hover:text-orange-600" data-suggested-prompt="${escapeAttribute(prompt)}">
+                        ${escapeAttribute(prompt)}
+                    </button>
+                `).join('');
+            }
+
+            function renderOnboardingCarousel() {
+                if (!chatHistory || chatHistory.children.length > 0) return;
+                if (!onboardingTips.length) return;
+                const tip = onboardingTips[onboardingIndex % onboardingTips.length];
+                chatHistory.dataset.onboarding = 'true';
+                chatHistory.innerHTML = `
+                    <div class="flex justify-center">
+                        <div class="bg-white/90 border border-slate-200 rounded-2xl px-5 py-6 shadow-sm max-w-md w-full space-y-4">
+                            <div class="flex items-center gap-3">
+                                <span class="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 text-orange-500">
+                                    <i class="fa-solid ${tip.icon}"></i>
+                                </span>
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-800">${escapeAttribute(tip.title)}</p>
+                                    <p class="text-xs text-slate-500">${escapeAttribute(tip.description)}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-slate-500">
+                                <button type="button" class="rounded-full border border-slate-200 px-3 py-1 hover:border-orange-300 hover:text-orange-600" data-onboarding-nav="prev">
+                                    <i class="fa-solid fa-chevron-left mr-1"></i> Previous
+                                </button>
+                                <span>${onboardingIndex + 1} / ${onboardingTips.length}</span>
+                                <button type="button" class="rounded-full border border-slate-200 px-3 py-1 hover:border-orange-300 hover:text-orange-600" data-onboarding-nav="next">
+                                    Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function formatFileSize(bytes) {
+                if (!Number.isFinite(bytes)) return '';
+                if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+                if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                return `${bytes} B`;
+            }
+
+            function renderFilePreview(file) {
+                if (!filePreviewContainer) return;
+                const size = formatFileSize(file.size);
+                filePreviewContainer.innerHTML = `
+                    <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/10 text-orange-500">
+                                <i class="fa-solid fa-file"></i>
+                            </span>
+                            <div>
+                                <p class="font-semibold text-slate-700">${escapeAttribute(file.name)}</p>
+                                <p class="text-xs text-slate-500">${size}${file.type ? ` • ${escapeAttribute(file.type)}` : ''}</p>
+                            </div>
+                        </div>
+                        <button type="button" class="text-slate-400 hover:text-red-500" data-remove-file title="Remove attachment">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+                filePreviewContainer.classList.remove('hidden');
+            }
+
+            function clearFilePreview() {
+                if (!filePreviewContainer) return;
+                filePreviewContainer.classList.add('hidden');
+                filePreviewContainer.innerHTML = '';
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+            }
+
             try {
                 const storedRole = localStorage.getItem(STORAGE_KEYS.role);
                 if (storedRole === 'ceo' || storedRole === 'manager') {
                     currentRole = storedRole;
                 }
+                const storedTheme = localStorage.getItem(STORAGE_KEYS.theme);
+                if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
+                    themePreference = storedTheme;
+                }
+                const storedVolume = localStorage.getItem(STORAGE_KEYS.volume);
+                if (storedVolume !== null && storedVolume !== undefined) {
+                    const parsed = Number(storedVolume);
+                    if (!Number.isNaN(parsed)) {
+                        notificationVolume = Math.min(1, Math.max(0, parsed));
+                    }
+                }
+                const storedVoice = localStorage.getItem(STORAGE_KEYS.voice);
+                if (storedVoice !== null) {
+                    voiceEnabled = storedVoice === 'true';
+                }
+                const storedRail = localStorage.getItem(STORAGE_KEYS.sideRail);
+                if (storedRail === 'true') {
+                    sideRailCollapsed = true;
+                }
             } catch (error) {
-                console.warn('Unable to restore stored role preference', error);
+                console.warn('Unable to restore stored preferences', error);
             }
+
+            applyTheme(themePreference);
+            pendingThemePreference = themePreference;
+            if (prefersDarkScheme) {
+                const listener = () => { if (themePreference === 'system') applyTheme(themePreference); };
+                if (typeof prefersDarkScheme.addEventListener === 'function') {
+                    prefersDarkScheme.addEventListener('change', listener);
+                } else if (typeof prefersDarkScheme.addListener === 'function') {
+                    prefersDarkScheme.addListener(listener);
+                }
+            }
+
+            if (notificationVolumeInput) {
+                notificationVolumeInput.value = notificationVolume;
+                updateVolumeLabel(notificationVolume);
+            }
+            if (defaultRoleSelect) {
+                defaultRoleSelect.value = currentRole;
+            }
+            if (themeRadios.length) {
+                themeRadios.forEach(radio => {
+                    radio.checked = radio.value === themePreference;
+                    radio.addEventListener('change', (event) => {
+                        if (event.target.checked) {
+                            pendingThemePreference = event.target.value;
+                            applyTheme(pendingThemePreference);
+                        }
+                    });
+                });
+            }
+            updateTtsAffordance();
+            setMicStatus('Tap the mic to speak');
+            updateSideRailState(sideRailCollapsed);
 
             const activeCharts = {};
             let contextCounter = 0;
@@ -294,6 +641,13 @@
                 button.addEventListener('click', () => activateTab(button.dataset.tabTarget));
             });
 
+            if (collapseRailBtn) {
+                collapseRailBtn.addEventListener('click', () => updateSideRailState(true));
+            }
+            if (sideRailReveal) {
+                sideRailReveal.addEventListener('click', () => updateSideRailState(false));
+            }
+
             const toolSchemas = {
                 "find_appointment": { title: "Find Appointment", icon: "fa-calendar-check", category: "Scheduling" },
                 "book_appointment": { title: "Book Appointment", icon: "fa-calendar-plus", category: "Scheduling" },
@@ -302,6 +656,48 @@
                 "schedule_task": { title: "Schedule Task", icon: "fa-clock", category: "Automation" },
                 "lead_create": { title: "Create Lead", icon: "fa-user-plus", category: "Sales" }
             };
+
+            if (toolSearchInput) {
+                toolSearchInput.addEventListener('input', (event) => {
+                    toolSearchTerm = event.target.value.trim().toLowerCase();
+                    render.tools();
+                });
+            }
+
+            if (toolCategorySelect) {
+                toolCategorySelect.addEventListener('change', (event) => {
+                    toolCategoryFilter = event.target.value;
+                    render.tools();
+                });
+            }
+
+            if (suggestionChipsContainer) {
+                suggestionChipsContainer.addEventListener('click', (event) => {
+                    const chip = event.target.closest('[data-suggested-prompt]');
+                    if (!chip) return;
+                    event.preventDefault();
+                    const prompt = chip.dataset.suggestedPrompt || chip.textContent.trim();
+                    if (prompt) {
+                        chatInput.value = prompt;
+                        chatInput.focus();
+                    }
+                });
+            }
+
+            if (chatHistory) {
+                chatHistory.addEventListener('click', (event) => {
+                    const nav = event.target.closest('[data-onboarding-nav]');
+                    if (!nav) return;
+                    event.preventDefault();
+                    if (!onboardingTips.length) return;
+                    if (nav.dataset.onboardingNav === 'next') {
+                        onboardingIndex = (onboardingIndex + 1) % onboardingTips.length;
+                    } else if (nav.dataset.onboardingNav === 'prev') {
+                        onboardingIndex = (onboardingIndex - 1 + onboardingTips.length) % onboardingTips.length;
+                    }
+                    renderOnboardingCarousel();
+                });
+            }
 
             const quickActionTemplates = [
                 {
@@ -706,29 +1102,45 @@
                 if (!SpeechRecognition) {
                     micBtn.disabled = true;
                     micBtn.title = "Speech recognition not supported in this browser.";
+                    setMicStatus('Voice capture not supported in this browser', 'idle');
                     return;
                 }
                 recognition = new SpeechRecognition();
                 recognition.lang = lang;
                 recognition.continuous = false;
                 recognition.interimResults = false;
+                micBtn.disabled = false;
+                micBtn.setAttribute('aria-pressed', 'false');
+                micBtn.title = 'Start voice capture';
 
                 recognition.onstart = () => {
                     micBtn.classList.add('listening', 'bg-red-500');
                     micBtn.classList.remove('bg-orange-500');
+                    micBtn.setAttribute('aria-pressed', 'true');
+                    micBtn.title = 'Stop voice capture';
+                    setMicStatus('Listening…', 'listening');
                 };
                 recognition.onend = () => {
                     micBtn.classList.remove('listening', 'bg-red-500');
                     micBtn.classList.add('bg-orange-500');
+                    micBtn.setAttribute('aria-pressed', 'false');
+                    micBtn.title = 'Start voice capture';
+                    if (!speechSubmitting) {
+                        setMicStatus('Tap the mic to speak', 'idle');
+                    }
                 };
                 recognition.onresult = (event) => {
                     const transcript = event.results[0][0].transcript.trim();
                     if (!transcript) return;
                     speechSubmitting = true;
+                    setMicStatus('Transcribing your request…', 'ready');
                     chatInput.value = transcript;
                     chatForm.dispatchEvent(new Event('submit', { bubbles: true }));
                 };
-                recognition.onerror = (event) => showToast(`Speech recognition error: ${event.error}`, true);
+                recognition.onerror = (event) => {
+                    showToast(`Speech recognition error: ${event.error}`, true);
+                    setMicStatus('Mic issue, try again', 'idle');
+                };
             }
 
             const synth = window.speechSynthesis;
@@ -747,27 +1159,68 @@
                 const voice = voices.find(v => v.lang === lang) || voices.find(v => v.lang && v.lang.startsWith(lang.split('-')[0]));
                 if (voice) utterance.voice = voice;
                 utterance.lang = lang;
+                utterance.volume = notificationVolume;
                 synth.speak(utterance);
             }
 
             micBtn.addEventListener('click', () => {
-                if (recognition && !micBtn.classList.contains('listening')) {
+                if (!recognition) {
+                    setMicStatus('Voice capture not ready', 'idle');
+                    return;
+                }
+                if (!micBtn.classList.contains('listening')) {
                     try {
                         recognition.start();
                     } catch (e) {
                         showToast('Speech recognition already started.', true);
+                        setMicStatus('Already listening…', 'listening');
                     }
                 }
             });
 
             ttsToggleBtn.addEventListener('click', () => {
                 voiceEnabled = !voiceEnabled;
-                ttsToggleBtn.innerHTML = voiceEnabled ? '<i class="fa-solid fa-volume-high text-orange-600"></i>' : '<i class="fa-solid fa-volume-xmark"></i>';
+                updateTtsAffordance();
+                try {
+                    localStorage.setItem(STORAGE_KEYS.voice, String(voiceEnabled));
+                } catch (error) {
+                    console.warn('Unable to persist voice toggle', error);
+                }
                 showToast(voiceEnabled ? "Voice responses enabled" : "Voice responses disabled");
                 if (!voiceEnabled) synth.cancel();
             });
 
             attachBtn.addEventListener('click', () => fileInput.click());
+
+            if (fileInput) {
+                fileInput.addEventListener('change', () => {
+                    const file = fileInput.files && fileInput.files[0];
+                    if (file) {
+                        renderFilePreview(file);
+                    } else {
+                        clearFilePreview();
+                    }
+                });
+            }
+
+            if (filePreviewContainer) {
+                filePreviewContainer.addEventListener('click', (event) => {
+                    if (event.target.closest('[data-remove-file]')) {
+                        event.preventDefault();
+                        clearFilePreview();
+                    }
+                });
+            }
+
+            if (notificationVolumeInput) {
+                notificationVolumeInput.addEventListener('input', (event) => {
+                    const value = Number(event.target.value);
+                    if (!Number.isNaN(value)) {
+                        notificationVolume = Math.min(1, Math.max(0, value));
+                        updateVolumeLabel(notificationVolume);
+                    }
+                });
+            }
 
             function showToast(message, isError = false) {
                 const toast = document.createElement('div');
@@ -795,6 +1248,7 @@
 
             function saveChatState() {
                 if (typeof localStorage === 'undefined') return;
+                if (chatHistory.dataset.onboarding === 'true') return;
                 try {
                     localStorage.setItem(STORAGE_KEYS.chat, chatHistory.innerHTML);
                     localStorage.setItem(STORAGE_KEYS.context, JSON.stringify({
@@ -822,6 +1276,7 @@
                     const savedHTML = localStorage.getItem(STORAGE_KEYS.chat);
                     if (savedHTML) {
                         chatHistory.innerHTML = savedHTML;
+                        delete chatHistory.dataset.onboarding;
                     }
                     const savedContext = localStorage.getItem(STORAGE_KEYS.context);
                     if (savedContext) {
@@ -916,6 +1371,10 @@
 
             const render = {
                 addMessageToChat: (content, isUser = false, options = {}) => {
+                    if (chatHistory.dataset.onboarding === 'true') {
+                        chatHistory.innerHTML = '';
+                        delete chatHistory.dataset.onboarding;
+                    }
                     const id = `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
                     const messageWrapper = document.createElement('div');
                     messageWrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'} w-full`;
@@ -973,12 +1432,78 @@
                     return msg;
                 },
                 tools: () => {
-                    const groupedTools = tools.reduce((acc, tool) => {
-                        const schema = toolSchemas[tool.name];
-                        if (!schema) return acc;
-                        (acc[schema.category] = acc[schema.category] || []).push(tool);
+                    if (!toolCatalog) return;
+                    if (!tools.length) {
+                        toolCatalog.innerHTML = `
+                            <div class="flex items-center justify-center h-full text-slate-400">
+                                <i class="fa fa-spinner fa-spin mr-2"></i> Loading Tools...
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    const availableCategories = new Set(Object.values(toolSchemas).map(schema => schema.category));
+                    if (toolCategorySelect && !toolFiltersHydrated) {
+                        const options = Array.from(availableCategories).sort().map(category => `
+                            <option value="${escapeAttribute(category)}">${escapeAttribute(category)}</option>
+                        `).join('');
+                        toolCategorySelect.insertAdjacentHTML('beforeend', options);
+                        toolFiltersHydrated = true;
+                        if (toolCategoryFilter !== 'all') {
+                            toolCategorySelect.value = toolCategoryFilter;
+                        }
+                    }
+
+                    if (toolSearchInput && toolSearchInput.value.trim().toLowerCase() !== toolSearchTerm) {
+                        toolSearchInput.value = toolSearchTerm;
+                    }
+
+                    const normalizedTools = tools.map(tool => {
+                        const schema = toolSchemas[tool.name] || { title: tool.name, icon: 'fa-toolbox', category: 'Other' };
+                        return { ...tool, schema };
+                    });
+
+                    const filteredTools = normalizedTools.filter(tool => {
+                        const category = tool.schema.category || 'Other';
+                        if (toolCategoryFilter !== 'all' && category !== toolCategoryFilter) {
+                            return false;
+                        }
+                        if (!toolSearchTerm) return true;
+                        const haystack = [tool.schema.title, tool.description, tool.name].filter(Boolean).join(' ').toLowerCase();
+                        return haystack.includes(toolSearchTerm);
+                    });
+
+                    if (!filteredTools.length) {
+                        toolCatalog.innerHTML = `
+                            <div class="flex h-full flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-slate-300 bg-white/80 p-6 text-center text-sm text-slate-500">
+                                <i class="fa-solid fa-binoculars text-xl text-slate-300"></i>
+                                <p>No tools match your current filters.</p>
+                                <button type="button" class="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600 hover:border-orange-300 hover:text-orange-600" data-clear-tool-filters>
+                                    <i class="fa-solid fa-eraser"></i>
+                                    Reset filters
+                                </button>
+                            </div>
+                        `;
+                        const clearFiltersBtn = toolCatalog.querySelector('[data-clear-tool-filters]');
+                        if (clearFiltersBtn) {
+                            clearFiltersBtn.addEventListener('click', () => {
+                                toolSearchTerm = '';
+                                toolCategoryFilter = 'all';
+                                if (toolSearchInput) toolSearchInput.value = '';
+                                if (toolCategorySelect) toolCategorySelect.value = 'all';
+                                render.tools();
+                            });
+                        }
+                        return;
+                    }
+
+                    const groupedTools = filteredTools.reduce((acc, tool) => {
+                        const category = tool.schema.category || 'Other';
+                        if (!acc[category]) acc[category] = [];
+                        acc[category].push(tool);
                         return acc;
                     }, {});
+
                     toolCatalog.innerHTML = `
                         <div class="flex flex-col gap-6">
                             ${Object.entries(groupedTools).map(([category, toolList]) => `
@@ -986,23 +1511,22 @@
                                     <div class="flex flex-col gap-2">
                                         <span class="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-orange-500/80">
                                             <i class="fa-solid fa-layer-group"></i>
-                                            ${category}
+                                            ${escapeAttribute(category)}
                                         </span>
-                                        <h3 class="text-lg font-semibold text-slate-800">Curated tools for ${category.toLowerCase()} excellence</h3>
+                                        <h3 class="text-lg font-semibold text-slate-800">Curated tools for ${escapeAttribute(category.toLowerCase())} excellence</h3>
                                         <p class="text-sm text-slate-500">Explore beautifully organised actions that keep your team moving fast.</p>
                                     </div>
                                     <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                                         ${toolList.map(tool => {
-                                            const schema = toolSchemas[tool.name];
                                             const safeDescription = escapeAttribute(tool.description || '');
-                                            const safeTitle = escapeAttribute(schema.title || 'Tool');
-                                            const safeTitleToken = escapeAttribute((schema.title || '').split(' ')[0] || 'Tool');
-                                            return `<button type="button" data-example="${tool.name}" class="tool-item group relative w-full rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-orange-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500/60">
+                                            const safeTitle = escapeAttribute(tool.schema.title || 'Tool');
+                                            const safeTitleToken = escapeAttribute((tool.schema.title || '').split(' ')[0] || 'Tool');
+                                            return `<button type="button" data-example="${escapeAttribute(tool.name)}" class="tool-item group relative w-full rounded-3xl border border-slate-200/70 bg-white/90 p-6 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-orange-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500/60">
                                                 <div class="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-transparent to-slate-100 opacity-0 transition duration-200 group-hover:opacity-100"></div>
                                                 <div class="relative flex min-h-[220px] flex-col gap-6">
                                                     <div class="flex items-center justify-between gap-4">
                                                         <span class="inline-flex items-center gap-2 rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-medium text-orange-600">
-                                                            <i class="fa-solid ${schema.icon}"></i>
+                                                            <i class="fa-solid ${tool.schema.icon}"></i>
                                                             ${safeTitleToken}
                                                         </span>
                                                         <span class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/60 bg-white text-slate-400 transition group-hover:border-orange-200 group-hover:text-orange-500">
@@ -1013,7 +1537,8 @@
                                                         <h4 class="text-lg font-semibold text-slate-800 transition group-hover:text-orange-600">${safeTitle}</h4>
                                                         <p class="text-sm leading-relaxed text-slate-500">${safeDescription}</p>
                                                     </div>
-                                                    <div class="mt-auto flex items-center justify-end text-slate-400 transition group-hover:text-orange-50">
+                                                    <div class="mt-auto flex items-center justify-between text-slate-400 transition group-hover:text-orange-50">
+                                                        <span class="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-400/80">${escapeAttribute(category)}</span>
                                                         <span class="inline-flex items-center gap-2 text-sm font-semibold text-orange-500 transition group-hover:text-white">
                                                             <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                                         </span>
@@ -1123,7 +1648,11 @@
 
                     const cardsSection = availableActions.length
                         ? `<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">${actionCards}</div>`
-                        : `<div class="flex h-32 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/80 text-sm text-slate-500">No quick actions configured for this role yet.</div>`;
+                        : `<div class="flex h-36 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white/80 p-4 text-sm text-slate-500">
+                                <i class="fa-solid fa-compass text-lg text-slate-300"></i>
+                                <p class="text-center">No quick actions match the ${escapeAttribute(ROLE_LABELS[currentRole] || 'selected')} workspace yet.</p>
+                                <button type="button" class="text-xs font-semibold text-orange-600 hover:underline" data-show-tools-from-empty>Browse the tool catalog</button>
+                           </div>`;
 
                     quickActionsList.innerHTML = `
                         <div class="flex flex-col gap-5">
@@ -1213,6 +1742,14 @@
                 };
 
                 quickActionsList.addEventListener('click', (event) => {
+                    const showToolsBtn = event.target.closest('[data-show-tools-from-empty]');
+                    if (showToolsBtn) {
+                        event.preventDefault();
+                        updateSideRailState(false);
+                        activateTab('tools');
+                        showToast('Switched to the tool catalog');
+                        return;
+                    }
                     if (event.target.closest('select')) return;
                     const card = event.target.closest('.quick-action-card[data-template]');
                     handleQuickAction(card);
@@ -1354,6 +1891,27 @@
                 return `${arrow} ${formatted}%`;
             }
 
+            const SOURCE_LINKS = {
+                appointment: { label: 'Open in CRM calendar', href: 'https://crm.chillbreeze.app/appointments' },
+                slots: { label: 'Manage availability', href: 'https://crm.chillbreeze.app/calendar' },
+                invoice: { label: 'Open billing workspace', href: 'https://crm.chillbreeze.app/billing' },
+                lead: { label: 'View in sales pipeline', href: 'https://crm.chillbreeze.app/leads' },
+                analytics: { label: 'Open analytics workspace', href: 'https://crm.chillbreeze.app/analytics' }
+            };
+
+            function buildSourceLink(toolKey) {
+                const meta = SOURCE_LINKS[toolKey];
+                if (!meta) return '';
+                return `
+                    <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-500">
+                        <span>${escapeAttribute(meta.label)}</span>
+                        <a href="${escapeAttribute(meta.href)}" target="_blank" class="inline-flex items-center gap-1 font-semibold text-orange-600">
+                            Open <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+                `;
+            }
+
             function appointmentActionButtons(contextId, index) {
                 const actions = [
                     { action: 'send-reminder', label: 'Send Reminder', icon: 'fa-bell' },
@@ -1439,6 +1997,7 @@
                                         Mark as Paid
                                     </button>
                                 </div>
+                                ${buildSourceLink('invoice')}
                             </div>
                         `;
 
@@ -1480,6 +2039,7 @@
                                         ${cards}
                                     </div>
                                     <p class="text-xs text-slate-500">Click a slot to populate a booking command automatically.</p>
+                                    ${buildSourceLink('slots')}
                                 </div>
                             `;
                             return {
@@ -1522,6 +2082,7 @@
                                     <div class="appointment-action-panel border border-dashed border-orange-200 rounded-lg p-3 bg-orange-50 text-sm text-orange-700" data-action-panel="${contextId}">
                                         Tap a row to reveal quick actions.
                                     </div>
+                                    ${buildSourceLink('appointment')}
                                 </div>
                             `;
                             return {
@@ -1589,6 +2150,7 @@
                                             ${appointmentActionButtons(contextId, 0)}
                                             <p class="text-xs text-slate-500">Use these shortcuts or continue the conversation.</p>
                                         </div>
+                                        ${buildSourceLink('appointment')}
                                     </div>
                                 `,
                                 contexts: [
@@ -1611,6 +2173,7 @@
                                     ${appointmentActionButtons(contextId, 0)}
                                     <p class="text-xs text-slate-500">Use these shortcuts or continue the conversation.</p>
                                 </div>
+                                ${buildSourceLink('appointment')}
                             </div>
                         `;
                         return {
@@ -1651,6 +2214,7 @@
                                                 <tbody class="divide-y divide-slate-200">${rows}</tbody>
                                             </table>
                                         </div>
+                                        ${buildSourceLink('lead')}
                                     </div>
                                 `,
                                 renderOptions: { isRich: true, fullWidth: true }
@@ -1679,6 +2243,7 @@
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
                                         ${displayDetails.map(item => `<div><span class="block font-semibold text-slate-700">${item.label}</span>${item.value || '-'}</div>`).join('')}
                                     </div>
+                                    ${buildSourceLink('lead')}
                                 </div>
                             `,
                             renderOptions: { isRich: true, fullWidth: true }
@@ -1692,14 +2257,43 @@
                         const cards = records.map(point => {
                             const changeLabel = formatChange(point.change);
                             const isPositive = typeof point.change === 'number' ? point.change >= 0 : String(point.change || '').startsWith('+');
+                            const baselineText = point.baseline || chartMeta.baseline || 'Last period average';
                             return `
-                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1">
-                                    <p class="text-xs uppercase tracking-wide text-slate-500">${point.metric || 'Metric'}</p>
-                                    <p class="text-2xl font-bold text-slate-800">${formatMetricValue(point)}</p>
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                                    <div>
+                                        <p class="text-xs uppercase tracking-wide text-slate-500">${point.metric || 'Metric'}</p>
+                                        <p class="text-2xl font-bold text-slate-800">${formatMetricValue(point)}</p>
+                                    </div>
                                     ${changeLabel ? `<p class="text-xs font-medium ${isPositive ? 'text-emerald-600' : 'text-rose-600'}">${changeLabel} vs last period</p>` : ''}
+                                    <p class="text-[11px] text-slate-400">Baseline: ${escapeAttribute(baselineText)}</p>
                                 </div>
                             `;
                         }).join('');
+
+                        const legendItems = (() => {
+                            if (Array.isArray(chartMeta.legendItems) && chartMeta.legendItems.length) {
+                                return chartMeta.legendItems;
+                            }
+                            if (chartConfig && chartConfig.data && Array.isArray(chartConfig.data.datasets)) {
+                                return chartConfig.data.datasets.map(dataset => ({
+                                    label: dataset.label || 'Series',
+                                    color: Array.isArray(dataset.borderColor) ? dataset.borderColor[0] : (dataset.borderColor || (Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[0] : dataset.backgroundColor))
+                                })).filter(item => item.label);
+                            }
+                            return [];
+                        })();
+
+                        const legendMarkup = legendItems.length
+                            ? `<div class="flex flex-wrap gap-3 text-xs text-slate-500">
+                                    ${legendItems.map(item => {
+                                        if (typeof item === 'string') {
+                                            return `<span class=\"inline-flex items-center gap-2\"><span class=\"h-2 w-2 rounded-full bg-orange-400\"></span>${escapeAttribute(item)}</span>`;
+                                        }
+                                        const color = escapeAttribute(item.color || '#f97316');
+                                        return `<span class=\"inline-flex items-center gap-2\"><span class=\"h-2 w-2 rounded-full\" style=\"background-color:${color}\"></span>${escapeAttribute(item.label)}</span>`;
+                                    }).join('')}
+                               </div>`
+                            : '';
 
                         const chartId = chartConfig ? `${contextId}-chart` : null;
                         const chartMarkup = chartConfig ? `
@@ -1724,9 +2318,11 @@
                                         <h4>Business Intelligence</h4>
                                         ${chartMeta.range ? `<span class="text-xs px-2 py-1 bg-slate-100 text-slate-500 rounded-full">${chartMeta.range}</span>` : ''}
                                     </div>
+                                    ${legendMarkup}
                                     ${cards ? `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${cards}</div>` : ''}
                                     ${chartMarkup}
                                     ${insightMarkup}
+                                    ${buildSourceLink('analytics')}
                                 </div>
                             `,
                             contexts: [{ id: contextId, type: 'analytics', data: { metrics: records, insights, chart: chartConfig } }],
@@ -2017,6 +2613,7 @@
                 const prompt = chatInput.value.trim();
                 if (!prompt) {
                     speechSubmitting = false;
+                    setMicStatus('Tap the mic to speak', 'idle');
                     return;
                 }
 
@@ -2075,13 +2672,44 @@
                     render.updateMessage(thinkingMessageId, `<p class="text-red-500">${errorMessage}</p>`, false);
                     speak(errorMessage, currentLang);
                 } finally {
+                    speechSubmitting = false;
+                    setMicStatus('Tap the mic to speak', 'idle');
                     saveChatState();
                 }
             }
 
             function toggleModal(modal, show) {
-                if (show) modal.classList.remove('hidden');
-                else modal.classList.add('hidden');
+                if (show) {
+                    modal.classList.remove('hidden');
+                    pendingThemePreference = themePreference;
+                    if (themeRadios.length) {
+                        themeRadios.forEach(radio => {
+                            radio.checked = radio.value === pendingThemePreference;
+                        });
+                    }
+                    if (defaultRoleSelect) {
+                        defaultRoleSelect.value = currentRole;
+                    }
+                    if (languageSelect) {
+                        languageSelect.value = currentLang;
+                    }
+                    if (notificationVolumeInput) {
+                        notificationVolumeInput.value = notificationVolume;
+                        updateVolumeLabel(notificationVolume);
+                    }
+                } else {
+                    modal.classList.add('hidden');
+                    applyTheme(themePreference);
+                    if (themeRadios.length) {
+                        themeRadios.forEach(radio => {
+                            radio.checked = radio.value === themePreference;
+                        });
+                    }
+                    if (notificationVolumeInput) {
+                        notificationVolumeInput.value = notificationVolume;
+                        updateVolumeLabel(notificationVolume);
+                    }
+                }
             }
 
             settingsBtn.addEventListener('click', () => toggleModal(settingsModal, true));
@@ -2089,12 +2717,41 @@
             saveSettingsBtn.addEventListener('click', () => {
                 currentLang = languageSelect.value;
                 setupRecognition(currentLang);
-                showToast(`Language set to ${languageSelect.options[languageSelect.selectedIndex].text}`);
+
+                themePreference = pendingThemePreference;
+                applyTheme(themePreference);
+                try {
+                    localStorage.setItem(STORAGE_KEYS.theme, themePreference);
+                } catch (error) {
+                    console.warn('Unable to persist theme preference', error);
+                }
+                pendingThemePreference = themePreference;
+
+                if (defaultRoleSelect) {
+                    setRole(defaultRoleSelect.value);
+                }
+
+                if (notificationVolumeInput) {
+                    const sliderValue = Number(notificationVolumeInput.value);
+                    if (!Number.isNaN(sliderValue)) {
+                        notificationVolume = Math.min(1, Math.max(0, sliderValue));
+                    }
+                }
+                updateVolumeLabel(notificationVolume);
+                try {
+                    localStorage.setItem(STORAGE_KEYS.volume, String(notificationVolume));
+                } catch (error) {
+                    console.warn('Unable to persist notification volume', error);
+                }
+
+                showToast('Settings updated successfully');
                 toggleModal(settingsModal, false);
             });
 
             async function init() {
                 restoreChatState();
+                renderOnboardingCarousel();
+                renderSuggestionChips();
                 chatForm.addEventListener('submit', handleChatSubmit);
                 tools = await api.getTools();
                 render.tools();
