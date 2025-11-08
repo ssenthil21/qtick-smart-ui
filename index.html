@@ -1891,10 +1891,108 @@
                 return `${arrow} ${formatted}%`;
             }
 
+            function flattenText(value) {
+                if (value === null || value === undefined) return [];
+                if (typeof value === 'string') {
+                    const trimmed = value.trim();
+                    return trimmed ? [trimmed] : [];
+                }
+                if (typeof value === 'number' || typeof value === 'boolean') {
+                    return [String(value)];
+                }
+                if (Array.isArray(value)) {
+                    return value.flatMap(item => flattenText(item));
+                }
+                if (typeof value === 'object') {
+                    return Object.values(value).flatMap(item => flattenText(item));
+                }
+                return [String(value)];
+            }
+
+            function getFirstRaw(record, keys) {
+                if (!record || typeof record !== 'object') return null;
+                for (const key of keys) {
+                    if (!Object.prototype.hasOwnProperty.call(record, key)) continue;
+                    const value = record[key];
+                    if (value === null || value === undefined) continue;
+                    if (typeof value === 'string' && value.trim() === '') continue;
+                    if (Array.isArray(value) && value.length === 0) continue;
+                    if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0) continue;
+                    return value;
+                }
+                return null;
+            }
+
+            function formatBusinessText(value) {
+                return flattenText(value).join(', ');
+            }
+
+            function getFirstText(record, keys) {
+                const raw = getFirstRaw(record, keys);
+                if (raw === null || raw === undefined) return '';
+                return formatBusinessText(raw);
+            }
+
+            function formatBusinessAddress(value) {
+                const parts = flattenText(value);
+                const unique = Array.from(new Set(parts.filter(Boolean)));
+                return unique.join(', ');
+            }
+
+            function formatOperatingHoursDisplay(hours) {
+                if (hours === null || hours === undefined) return '';
+                if (typeof hours === 'string' || typeof hours === 'number' || typeof hours === 'boolean') {
+                    const text = formatBusinessText(hours);
+                    return text ? `<p class="text-xs text-slate-600">${escapeAttribute(text)}</p>` : '';
+                }
+                if (Array.isArray(hours)) {
+                    const rows = hours.map(item => {
+                        if (!item) return '';
+                        if (typeof item === 'string') {
+                            return `<p class="text-xs text-slate-600">${escapeAttribute(item)}</p>`;
+                        }
+                        if (typeof item === 'object') {
+                            const day = getFirstText(item, ['day', 'label', 'name']);
+                            const valueText = formatBusinessText(getFirstRaw(item, ['hours', 'value', 'time', 'range', 'slot']) ?? item);
+                            if (day) {
+                                return valueText
+                                    ? `<div class="flex items-center justify-between gap-3 text-xs text-slate-500"><span class="font-medium text-slate-600">${escapeAttribute(day)}</span><span>${escapeAttribute(valueText)}</span></div>`
+                                    : '';
+                            }
+                            return valueText ? `<p class="text-xs text-slate-600">${escapeAttribute(valueText)}</p>` : '';
+                        }
+                        return '';
+                    }).filter(Boolean);
+                    return rows.join('');
+                }
+                if (typeof hours === 'object') {
+                    const rows = Object.entries(hours).map(([day, value]) => {
+                        const valueText = formatBusinessText(value);
+                        if (!valueText) return '';
+                        return `<div class="flex items-center justify-between gap-3 text-xs text-slate-500"><span class="font-medium text-slate-600">${escapeAttribute(day)}</span><span>${escapeAttribute(valueText)}</span></div>`;
+                    }).filter(Boolean);
+                    return rows.join('');
+                }
+                const text = formatBusinessText(hours);
+                return text ? `<p class="text-xs text-slate-600">${escapeAttribute(text)}</p>` : '';
+            }
+
+            function buildBusinessStatusBadge(status) {
+                if (!status) return '';
+                const normalized = status.toLowerCase();
+                let classes = 'bg-emerald-100 text-emerald-600';
+                if (normalized.includes('inactive') || normalized.includes('closed') || normalized.includes('suspended')) {
+                    classes = 'bg-rose-100 text-rose-600';
+                } else if (normalized.includes('pending') || normalized.includes('draft')) {
+                    classes = 'bg-amber-100 text-amber-600';
+                }
+                return `<span class="rounded-full px-3 py-1 text-xs font-semibold ${classes} capitalize">${escapeAttribute(status)}</span>`;
+            }
+
             const SOURCE_LINKS = {
-                appointment: { label: 'Open in CRM calendar', href: 'https://crm.chillbreeze.app/appointments' },
+                appointment: { label: 'Open in QTick calendar', href: 'https://crm.chillbreeze.app/appointments' },
                 slots: { label: 'Manage availability', href: 'https://crm.chillbreeze.app/calendar' },
-                invoice: { label: 'Open billing workspace', href: 'https://crm.chillbreeze.app/billing' },
+                invoice: { label: 'Show more detail in QTick billing', href: 'https://crm.chillbreeze.app/billing' },
                 lead: { label: 'View in sales pipeline', href: 'https://crm.chillbreeze.app/leads' },
                 analytics: { label: 'Open analytics workspace', href: 'https://crm.chillbreeze.app/analytics' }
             };
@@ -1939,6 +2037,143 @@
                 const normalizedTool = String(response.tool || '').toLowerCase();
 
                 const builders = {
+                    business: (records) => {
+                        if (!records.length) return null;
+                        const contextId = createContextId('businesses');
+                        const normalized = records.map((record, index) => {
+                            const name = getFirstText(record, ['name', 'businessName', 'title', 'label', 'displayName']) || `Business ${index + 1}`;
+                            const id = getFirstText(record, ['id', 'businessId', 'locationId', 'externalId']);
+                            const status = getFirstText(record, ['status', 'state', 'businessStatus']);
+                            const type = getFirstText(record, ['type', 'businessType', 'category', 'segment']);
+                            const phone = getFirstText(record, ['phone', 'phoneNumber', 'contactNumber', 'mobile', 'telephone']);
+                            const email = getFirstText(record, ['email', 'contactEmail', 'supportEmail']);
+                            const website = getFirstText(record, ['website', 'site', 'url']);
+                            const addressRaw = getFirstRaw(record, ['address', 'address1', 'addressLine1', 'addressLine', 'addressLines', 'street', 'location', 'fullAddress']);
+                            const address = addressRaw ? formatBusinessAddress(addressRaw) : '';
+                            const area = getFirstText(record, ['area', 'neighborhood', 'city', 'region', 'state', 'country']);
+                            const hoursRaw = getFirstRaw(record, ['hours', 'operatingHours', 'openingHours', 'businessHours']);
+                            const hoursMarkup = formatOperatingHoursDisplay(hoursRaw);
+                            let tags = [];
+                            const rawTags = getFirstRaw(record, ['tags', 'labels', 'categories', 'segments']);
+                            if (Array.isArray(rawTags)) {
+                                tags = rawTags.map(tag => formatBusinessText(tag)).map(tag => tag.trim()).filter(Boolean);
+                            } else if (rawTags) {
+                                const tagText = formatBusinessText(rawTags).trim();
+                                if (tagText) tags = [tagText];
+                            }
+                            return { name, id, status, type, phone, email, website, address, area, hoursMarkup, tags, raw: record };
+                        });
+
+                        if (normalized.length > 1) {
+                            const cards = normalized.map((business, index) => {
+                                const statusBadge = buildBusinessStatusBadge(business.status);
+                                const tagsMarkup = business.tags.length
+                                    ? `<div class="flex flex-wrap gap-2">${business.tags.map(tag => `<span class="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-semibold text-orange-600">${escapeAttribute(tag)}</span>`).join('')}</div>`
+                                    : '';
+                                const hoursSection = business.hoursMarkup
+                                    ? `<div class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1">
+                                            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Operating hours</p>
+                                            ${business.hoursMarkup}
+                                       </div>`
+                                    : '';
+                                const areaLine = business.area && business.area !== business.address
+                                    ? `<p class="flex items-start gap-2"><i class="fa-solid fa-map text-slate-400"></i><span>${escapeAttribute(business.area)}</span></p>`
+                                    : '';
+                                return `
+                                    <div class="business-card flex h-full flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-sm" data-context-id="${contextId}" data-index="${index}">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="space-y-1">
+                                                <p class="text-base font-semibold text-slate-800">${escapeAttribute(business.name)}</p>
+                                                ${business.type ? `<p class="text-xs uppercase tracking-wide text-slate-400">${escapeAttribute(business.type)}</p>` : ''}
+                                                ${business.id ? `<p class="text-[11px] text-slate-400">ID: ${escapeAttribute(business.id)}</p>` : ''}
+                                            </div>
+                                            ${statusBadge}
+                                        </div>
+                                        <div class="space-y-2 text-sm text-slate-600">
+                                            ${business.address ? `<p class="flex items-start gap-2"><i class="fa-solid fa-location-dot mt-1 text-slate-400"></i><span>${escapeAttribute(business.address)}</span></p>` : ''}
+                                            ${areaLine}
+                                            ${business.phone ? `<p class="flex items-center gap-2"><i class="fa-solid fa-phone text-slate-400"></i><span>${escapeAttribute(business.phone)}</span></p>` : ''}
+                                            ${business.email ? `<p class="flex items-center gap-2"><i class="fa-solid fa-envelope text-slate-400"></i><span>${escapeAttribute(business.email)}</span></p>` : ''}
+                                            ${business.website ? `<p class="flex items-center gap-2"><i class="fa-solid fa-globe text-slate-400"></i><span class="break-all">${escapeAttribute(business.website)}</span></p>` : ''}
+                                        </div>
+                                        ${hoursSection}
+                                        ${tagsMarkup}
+                                    </div>
+                                `;
+                            }).join('');
+
+                            const markup = `
+                                <div class="chat-response-container space-y-4" data-context-id="${contextId}" data-context-type="businesses">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <h4>Businesses</h4>
+                                        <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-500">${normalized.length} found</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">${cards}</div>
+                                    ${buildSourceLink('business')}
+                                </div>
+                            `;
+
+                            return {
+                                markup,
+                                contexts: [{ id: contextId, type: 'businesses', data: records }],
+                                renderOptions: { isRich: true, fullWidth: true }
+                            };
+                        }
+
+                        const business = normalized[0];
+                        const statusBadge = buildBusinessStatusBadge(business.status);
+                        const detailItems = [
+                            { label: 'Business ID', value: business.id },
+                            { label: 'Type', value: business.type },
+                            { label: 'Address', value: business.address || business.area },
+                            { label: 'Phone', value: business.phone },
+                            { label: 'Email', value: business.email, type: 'email' },
+                            { label: 'Website', value: business.website, type: 'link' }
+                        ].filter(item => item.value);
+
+                        const detailMarkup = detailItems.length
+                            ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                                    ${detailItems.map(item => {
+                                        const safeValue = escapeAttribute(item.value);
+                                        let content = safeValue;
+                                        if (item.type === 'link') {
+                                            const hrefValue = /^(https?:)?\/\//i.test(item.value) ? item.value : `https://${item.value}`;
+                                            content = `<a href="${escapeAttribute(hrefValue)}" target="_blank" class="text-orange-600 underline break-all">${safeValue}</a>`;
+                                        } else if (item.type === 'email') {
+                                            content = `<a href="mailto:${safeValue}" class="text-orange-600 underline break-all">${safeValue}</a>`;
+                                        }
+                                        return `<div><span class="block font-semibold text-slate-700">${item.label}</span>${content}</div>`;
+                                    }).join('')}
+                               </div>`
+                            : '';
+
+                        const tagsMarkup = business.tags.length
+                            ? `<div class="flex flex-wrap gap-2">${business.tags.map(tag => `<span class="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-semibold text-orange-600">${escapeAttribute(tag)}</span>`).join('')}</div>`
+                            : '';
+
+                        const markup = `
+                            <div class="chat-response-container space-y-4" data-context-id="${contextId}" data-context-type="businesses">
+                                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h4>${escapeAttribute(business.name)}</h4>
+                                        ${business.type ? `<p class="text-xs uppercase tracking-wide text-slate-400">${escapeAttribute(business.type)}</p>` : ''}
+                                        ${business.id ? `<p class="text-xs text-slate-400">ID: ${escapeAttribute(business.id)}</p>` : ''}
+                                    </div>
+                                    ${statusBadge}
+                                </div>
+                                ${detailMarkup}
+                                ${business.hoursMarkup ? `<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2"><p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Operating hours</p>${business.hoursMarkup}</div>` : ''}
+                                ${tagsMarkup}
+                                ${buildSourceLink('business')}
+                            </div>
+                        `;
+
+                        return {
+                            markup,
+                            contexts: [{ id: contextId, type: 'businesses', data: records }],
+                            renderOptions: { isRich: true, fullWidth: true }
+                        };
+                    },
                     invoice: (records) => {
                         const invoice = records[0] || {};
                         const contextId = createContextId('invoice');
